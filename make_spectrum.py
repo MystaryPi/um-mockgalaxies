@@ -245,15 +245,32 @@ def getMags(sps, filternames=['jwst_f115w','jwst_f150w','jwst_f200w','jwst_f277w
     pc = 3.085677581467192e18  # in cm
     lsun = 3.846e+33
     z = sps.params['zred']
-    w, spec = sps.get_spectrum(tage=-99, peraa=True) # Lsun/AA #previously tage = -99
+
+    tuniv = cosmo.age(z).value # in Gyr 
+    w, spec = sps.get_spectrum(tage=tuniv, peraa=True) # Lsun/AA 
     spec = spec * lsun / (4 * np.pi * (cosmo.luminosity_distance(z=z).value*1e6*pc)**2 * (1+z)) # erg/s/cm^2/AA (f_lamda))
 
     # get flux in filters
     filters = sedpy.observate.load_filters(filternames)
     magObs = np.zeros(len(filters))-99
     wObs = w * (1+sps.params['zred'])
+
     for i, fil in enumerate(filters):
         magObs[i] = fil.ab_mag(wObs, spec) #magObs in AB magnitude #input: AA, cgs Flambda units
+
+    
+       
+    '''
+    spec_new = spec * 3.34*10**4 * w**2 / 3631 
+    plt.plot(wObs, spec, label='Galaxy spectrum',lw=1.5, color='grey', alpha=0.7, zorder=10)    
+    plt.xscale('log')
+    plt.xlim(1e3, 1e5)
+    plt.ylim(1e-10, 1e-6)
+    plt.yscale('log')
+    plt.xlabel("Observed wavelength (AA)")
+    plt.ylabel(r"F$_\nu$ in maggies")
+    plt.show()
+    '''
 
     return(filters, magObs)
             
@@ -400,25 +417,28 @@ if __name__ == "__main__":
         obs = fix_obs(obs)
 
         # save
-        #np.savez('obs-z3/umobs_'+str(int(gal['gal_id']))+'.npz', gal=gal, obs=obs, params=sps.params) #before=**spsdict
-
+        #np.savez('obs/umobs_'+str(int(gal['gal_id']))+'.npz', gal=gal, obs=obs, params=sps.params) #before=**spsdict
         
         # gal type is np void object
 
         #### PLOTTING ####
         pc = 3.085677581467192e18  # in cm
         lsun = 3.846e+33
-        z = sps.params['zred']
-        w, spec = sps.get_spectrum(tage=cosmo.age(obs['zred']).value) # Lsun/Hz
-        spec = spec * lsun / (4*np.pi*cosmo.luminosity_distance(z=sps.params['zred']).to(u.cm).value**2) # erg/s/cm^2/A
         
-        #spec = spec * lsun / (4 * np.pi * (cosmo.luminosity_distance(z=z).value*1e6*pc)**2 * (1+z)) #erg/s/cm^2/Hz
-        spec = spec * 10**(-0.4*-48.60) #basically dividing by 3.631 * 10^-20 # in maggies
-
+        z = sps.params['zred']
+        w, spec = sps.get_spectrum(tage=cosmo.age(z).value, peraa = False) # Lsun/Hz
+        spec = spec * lsun / (4 * np.pi * (cosmo.luminosity_distance(z=z).value*1e6*pc)**2 * (1+z)) # erg/s/cm^2/Hz (f_nu))
+        # LD in Mpc, 1e6 pc (cm)
+        
+        # F_lambda in CGS to F_nu IN JANKSKIES
+        #spec = spec * w**2 * 3.34 * 10**4 # wavelength in angstroms already # in janskys
+        spec = spec * 10**23 # cgs f_nu to janskys
+        spec = spec/3631 #3631 Jy = 1 maggie
+        
         sfig, saxes = plt.subplots(2,1, figsize=(8, 6))
         #saxes[0].plot(time_beginning, sfr, lw=1.2, alpha=.6)
+
         ####### MAGGIES PLOTS ########
-        
         saxes[1].plot(w*(1+obs['zred']), spec, label='Galaxy spectrum',lw=1.5, color='grey', alpha=0.7, zorder=10)    
         saxes[1].errorbar(obs['wave_effective'], obs['maggies_orig'], label='Intrinsic photometry', marker='s', markersize=10, 
            alpha=0.8, ls='', lw=3, markerfacecolor='none', markeredgecolor='green', markeredgewidth=3)
@@ -467,7 +487,7 @@ if __name__ == "__main__":
         
         plt.show()
         
-    
+        
         '''
         ##### TEMPORARY - plot filters
         # establish bounds
