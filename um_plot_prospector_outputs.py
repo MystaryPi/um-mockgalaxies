@@ -196,8 +196,7 @@ from prospect.models.transforms import logsfr_ratios_to_masses_psb, psb_logsfr_r
 # actual sfh percentiles
 flatchain = res["chain"]
 niter = res['chain'].shape[-2]
-#tmax = cosmo.age(np.min(flatchain[:,mod.theta_index['zred']])).value
-tmax = 13.3
+tmax = cosmo.age(np.min(flatchain[:,mod.theta_index['zred']])).value
 
 # will need to interpolate to get everything on same time scale
 # make sure this matches b/t two model types!
