@@ -17,7 +17,6 @@ import sedpy
 
 # constants
 lsun = 3.826e33 # erg/s
-c = 2.99792458e8 #m/s
 
 # this is copied from gallazzi_05_massmet used in prospector
 # mass ranges, metallicity values, +/- 1 standard deviation errors
@@ -39,8 +38,7 @@ massmet = np.array([[ 8.870e+00, -6.000e-01, -1.110e+00, -0.000e+00],
     [ 1.187e+01,  1.500e-01, -3.000e-02,  3.000e-01]])
 
 def um_array(parameters, n_gal, n_sfh): 
-    # make a dtype for the results
-    # TODO add phot?            
+    # make a dtype for the results           
     cols = [(p, np.float64) for p in parameters]  
     cols += [('z', np.float64), ("sfh", np.float64, (n_sfh, 2))]
     dt = np.dtype(cols)
@@ -54,7 +52,9 @@ def trap(x, y):
     # basic trapezoidal integration
     return np.sum((x[1:] - x[:-1]) * (y[1:] + y[:-1]))/2.     
 
-def loadUMachine(data_dir='/Users/michpark/JWST_Programs/mockgalaxies/', col_names=['gal_id', 'upID', 'VMpeak', 'Vmax', 'Mpeak', 'Mvir', 'Mstar', 'sfr'], remove_satellites=True):
+def loadUMachine(data_dir='/Users/michpark/JWST_Programs/mockgalaxies/', 
+                 col_names=['gal_id', 'upID', 'VMpeak', 'Vmax', 'Mpeak', 'Mvir', 'Mstar', 'sfr'], 
+                 remove_satellites=True, redshift=3):
     #data_dir='/oak/stanford/orgs/kipac/users/michpark/JWST_Programs/mockgalaxies/'
     
     ''' 
@@ -86,9 +86,11 @@ def loadUMachine(data_dir='/Users/michpark/JWST_Programs/mockgalaxies/', col_nam
     
     '''
     # first, check to make sure the paths exist
-    um_path = glob(os.path.join(data_dir, 'SFH_sel_z3.txt')) # z = 3
-    #um_path = glob(os.path.join(data_dir, 'SFH_sel_z2p5.txt')) # z = 2.5
-    #um_path = glob(os.path.join(data_dir, 'SFH_sel_z1.txt'))
+    
+    # Given redshift parameter, determines which UM SFH file to choose
+    sfhFileName = 'SFH_sel_z' + str(redshift).replace('.', 'p') + '.txt'
+    
+    um_path = glob(os.path.join(data_dir, sfhFileName)) 
 
     '''
     if len(um_path) == 0:
@@ -105,23 +107,21 @@ def loadUMachine(data_dir='/Users/michpark/JWST_Programs/mockgalaxies/', col_nam
         print('No scale file found in directory '+data_dir)
         
     # now, load in the scale file and get the redshift of each snapshot in the simulation
-    '''
-    sfr = SFH[:, 8+id_snap:8+2*id_snap]
-    when loading in different redshift SFH_sel_z* files, different column numbers are:
-    z2: 58
-    z2p5: 52
-    z3 : 47
-    z3p5: 43
-    z4: 38
-    z4p5: 35
-    z5: 32
-    '''
+    # when loading in different redshift SFH_sel_z* files, different column numbers
+    # stored in dictionary below
 
-    scales = np.loadtxt(scale_path)[:47][:,1] # z = 3
-    #scales = np.loadtxt(scale_path)[:52][:,1] # z = 2.5
-    #scales = np.loadtxt(scale_path)[:74][:,1] # z = 1
+    scales_dict = {
+        2: 58,
+        2.5: 52,
+        3: 47,
+        3.5: 43,
+        4: 38,
+        4.5: 35,
+        5: 32
+    }
 
-    print(scales)
+    scales = np.loadtxt(scale_path)[:scales_dict[redshift]][:,1]
+
     z = 1/scales - 1 # Redshift of each snapshot
     
     # load UMachine results and initialize an array
@@ -135,9 +135,9 @@ def loadUMachine(data_dir='/Users/michpark/JWST_Programs/mockgalaxies/', col_nam
 
     # fill in SFH
     um_data['sfh'][:,:,0] = z 
-    um_data['sfh'][:,:,1] = um_results[:,55:102] # z = 3
-    #um_data['sfh'][:,:,1] = um_results[:,60:112] # z = 2.5
-    #um_data['sfh'][:,:,1] = um_results[:, 82:156]  # z = 1
+
+    # sfr = SFH[:, 8+id_snap:8+2*id_snap]
+    um_data['sfh'][:,:,1] = um_results[:,8+scales_dict[redshift]:8+2*scales_dict[redshift]] 
     um_data['z'] = um_data['sfh'][:,-1,0]
     
     # remove satellites if requested
@@ -219,11 +219,18 @@ def getDust(logmass, logsfr, z):
     
     # obviously this should be more complicated... but for now:
     # talk to richie about dust in models
-    dust2 = 0.0
+    dust2 = 0.2
     dust_frac = 1.0
     dust_index = 0.0
     
     return(dust2, dust_frac*dust2, dust_index)   
+
+def convertMaggiesToFlam(maggies):
+    # converts maggies to f_lambda units, for OBS DICT photometries
+    c = 2.99792458e18 #AA/s
+    flux_fnu = maggies * 10**-23 * 3631 # maggies to cgs fnu
+    flux_flambda = flux_fnu * c/obs['wave_effective']**2 # v Fnu = lambda Flambda
+    return flux_flambda
 
         
 def getMags(sps, filternames=['jwst_f115w','jwst_f150w','jwst_f200w','jwst_f277w','jwst_f356w','jwst_f410m','jwst_f444w','jwst_f070w','jwst_f090w','jwst_f140m','jwst_f162m','jwst_f182m','jwst_f210m','jwst_f250m','jwst_f300m',
@@ -243,17 +250,33 @@ def getMags(sps, filternames=['jwst_f115w','jwst_f150w','jwst_f200w','jwst_f277w
             
     # get spectrum in cgs units
     pc = 3.085677581467192e18  # in cm
-    lsun = 3.846e+33
     z = sps.params['zred']
-    w, spec = sps.get_spectrum(tage=-99, peraa=True) # Lsun/AA #previously tage = -99
+
+    tuniv = cosmo.age(z).value # in Gyr 
+    w, spec = sps.get_spectrum(tage=tuniv, peraa=True) # Lsun/AA 
     spec = spec * lsun / (4 * np.pi * (cosmo.luminosity_distance(z=z).value*1e6*pc)**2 * (1+z)) # erg/s/cm^2/AA (f_lamda))
 
     # get flux in filters
     filters = sedpy.observate.load_filters(filternames)
     magObs = np.zeros(len(filters))-99
     wObs = w * (1+sps.params['zred'])
+
     for i, fil in enumerate(filters):
         magObs[i] = fil.ab_mag(wObs, spec) #magObs in AB magnitude #input: AA, cgs Flambda units
+
+    
+       
+    '''
+    spec_new = spec * 3.34*10**4 * w**2 / 3631 
+    plt.plot(wObs, spec, label='Galaxy spectrum',lw=1.5, color='grey', alpha=0.7, zorder=10)    
+    plt.xscale('log')
+    plt.xlim(1e3, 1e5)
+    plt.ylim(1e-10, 1e-6)
+    plt.yscale('log')
+    plt.xlabel("Observed wavelength (AA)")
+    plt.ylabel(r"F$_\nu$ in maggies")
+    plt.show()
+    '''
 
     return(filters, magObs)
             
@@ -333,7 +356,7 @@ def build_obs(filters, mags, gal, depths): #should be build_obs technically
     
     # divided by 5 because these are 5 sigma errors      
     depths_maggies = {key:10**(-0.4*value)/5 for key, value in depths.items()}   
-    unc = [depths_maggies[f.name] for f in filters]    
+    unc = [depths_maggies[f.name] for f in filters] # enforce sorted order by filters
                 
     # get magnitudes also in maggies 
     # mags are in AB magnitude        
@@ -373,7 +396,7 @@ if __name__ == "__main__":
     sps = loadSPS({'dust_type':4}) #,'zred':um['z'][0],'redshift_colors':1
 
     # for each object, get a spectrum and fill in photometry
-    for gal in um[0:1]: #456, 457 before
+    for gal in um[0:1]: 
         print("Object ID: " + str(gal['gal_id']))
         # set SFH and get total stellar mass
         # (different from UMachine value b/c latter incluldes mass loss)
@@ -382,10 +405,9 @@ if __name__ == "__main__":
 
         # check up on this-- should we be doing a different integration instead?
         logM = np.log10(trap(cosmo.age(gal['sfh'][:,0]).value*1e9, gal['sfh'][:,1]))
-        print("logmass: " + str(logM))
+        print("logmass: " + str(logM)) # slightly dif from gal['logM'] - mass loss?
 
         # set redshift, metallicity, dust params
-        
         sps.params['logzsol'] = getMetallicity(logM, mini=-0.5, maxi=1.0, nsample=1)
         sps.params['dust2'], sps.params['dust1'], sps.params['dust_index'] = getDust(logM, um['sfr'], um['z'])
         sps.params['zred'] = gal['z'] 
@@ -400,51 +422,28 @@ if __name__ == "__main__":
         obs = fix_obs(obs)
 
         # save
-        #np.savez('obs-z3/umobs_'+str(int(gal['gal_id']))+'.npz', gal=gal, obs=obs, params=sps.params) #before=**spsdict
-
+        #np.savez('obs/umobs_'+str(int(gal['gal_id']))+'.npz', gal=gal, obs=obs, params=sps.params) #before=**spsdict
         
         # gal type is np void object
 
         #### PLOTTING ####
         pc = 3.085677581467192e18  # in cm
         lsun = 3.846e+33
-        z = sps.params['zred']
-        w, spec = sps.get_spectrum(tage=cosmo.age(obs['zred']).value) # Lsun/Hz
-        spec = spec * lsun / (4*np.pi*cosmo.luminosity_distance(z=sps.params['zred']).to(u.cm).value**2) # erg/s/cm^2/A
         
-        #spec = spec * lsun / (4 * np.pi * (cosmo.luminosity_distance(z=z).value*1e6*pc)**2 * (1+z)) #erg/s/cm^2/Hz
-        spec = spec * 10**(-0.4*-48.60) #basically dividing by 3.631 * 10^-20 # in maggies
+        z = sps.params['zred']
+        w, spec = sps.get_spectrum(tage=cosmo.age(z).value, peraa = False) # Lsun/Hz
+        spec = spec * lsun / (4 * np.pi * (cosmo.luminosity_distance(z=z).value*1e6*pc)**2 * (1+z)) # erg/s/cm^2/AA (f_lamda))
 
         sfig, saxes = plt.subplots(2,1, figsize=(8, 6))
         #saxes[0].plot(time_beginning, sfr, lw=1.2, alpha=.6)
-        ####### MAGGIES PLOTS ########
-        
+
+        ####### Plots in Flambda Units ########
+        # Created new convertMaggiesToFlam function that will do a conversion to flambda given maggies (ALR inputs wave_eff)
         saxes[1].plot(w*(1+obs['zred']), spec, label='Galaxy spectrum',lw=1.5, color='grey', alpha=0.7, zorder=10)    
-        saxes[1].errorbar(obs['wave_effective'], obs['maggies_orig'], label='Intrinsic photometry', marker='s', markersize=10, 
+        saxes[1].errorbar(obs['wave_effective'], convertMaggiesToFlam(obs['maggies_orig']), label='Intrinsic photometry', marker='s', markersize=10, 
            alpha=0.8, ls='', lw=3, markerfacecolor='none', markeredgecolor='green', markeredgewidth=3)
-        saxes[1].errorbar(obs['wave_effective'], obs['maggies'], yerr=obs['maggies_unc'], label='Observed photometry',
+        saxes[1].errorbar(obs['wave_effective'], convertMaggiesToFlam(obs['maggies']), yerr=convertMaggiesToFlam(obs['maggies_unc']), label='Observed photometry',
             ecolor='red', marker='o', markersize=10, ls='', lw=3, alpha=0.8, markerfacecolor='none', markeredgecolor='black', markeredgewidth=3)
-        
-
-        #Also plot PHOTOMETRY!!
-        #solar luminosities/hz (spec) * erg/s / cm^2 (specscaled) * 10**23 * 3.631 in jankskys / 3631 to maggies
-        #Also plot the intrinsic (maggies orig) + obs (maggies + maggies_unc) photometry
-        ####### CORRECT REST FRAME WAVELENGTH PLOTS ##########
-        #saxes[1].plot(w,spec * lsun / (4*np.pi*cosmo.luminosity_distance(z=sps.params['zred']).to(u.cm).value**2) * 10**20 * c/w**2, label='Galaxy spectrum',lw=1.5, color='grey', alpha=0.7, zorder=10)    
-        #saxes[1].errorbar(obs['wave_effective']/(1+obs['zred']), obs['maggies_orig'] * c/(obs['wave_effective']/(1+obs['zred']))**2, label='Intrinsic photometry', marker='s', markersize=10, 
-        #    alpha=0.8, ls='', lw=3, markerfacecolor='none', markeredgecolor='green', markeredgewidth=3)
-        #saxes[1].errorbar(obs['wave_effective']/(1+obs['zred']), obs['maggies'] * c/(obs['wave_effective']/(1+obs['zred']))**2, yerr=obs['maggies_unc'] * c/(obs['wave_effective']/(1+obs['zred']))**2, label='Observed photometry',
-        #    ecolor='red', marker='o', markersize=10, ls='', lw=3, alpha=0.8, markerfacecolor='none', markeredgecolor='black', markeredgewidth=3)
-
-        ####### CORRECT OBSERVED WAVELENGTH PLOTS ########
-        # wavelength obs = wavelength rest * (1+z), wave_effective in obs, w in rest
-        '''
-        saxes[1].plot(w*(1+obs['zred']),spec * c/w**2, label='Galaxy spectrum',lw=1.5, color='grey', alpha=0.7, zorder=10)    
-        saxes[1].errorbar(obs['wave_effective'], obs['maggies_orig'] * c/(obs['wave_effective']/(1+obs['zred']))**2, label='Intrinsic photometry', marker='s', markersize=10, 
-           alpha=0.8, ls='', lw=3, markerfacecolor='none', markeredgecolor='green', markeredgewidth=3)
-        saxes[1].errorbar(obs['wave_effective'], obs['maggies'] * c/(obs['wave_effective']/(1+obs['zred']))**2, yerr=obs['maggies_unc'] * c/(obs['wave_effective']/(1+obs['zred']))**2, label='Observed photometry',
-            ecolor='red', marker='o', markersize=10, ls='', lw=3, alpha=0.8, markerfacecolor='none', markeredgecolor='black', markeredgewidth=3)
-        '''
         
         saxes[1].set_xscale('log')
         saxes[1].set_xlim(1e3, 1e5)
@@ -454,9 +453,8 @@ if __name__ == "__main__":
         saxes[1].set_xlabel("Observed wavelength (AA)")
         #text = saxes[1].text(1300, 10**-17.9, "Mass: " + str("%.3f" % logM[0]) + "\nMetallicity: " + str("%.3f" % logZ[0])) 
         # z = 0.974 
-        # can remove easily with text.remove()
-        #saxes[1].set_ylabel(r"F$_\lambda$ in ergs/s/cm$^2$/AA")
-        saxes[1].set_ylabel(r"F$_\nu$ in maggies")
+        saxes[1].set_ylabel(r"F$_\lambda$ in ergs/s/cm$^2$/AA")
+        #saxes[1].set_ylabel(r"F$_\nu$ in maggies")
             
 
         saxes[0].set_yscale('log')
@@ -467,7 +465,7 @@ if __name__ == "__main__":
         
         plt.show()
         
-    
+        
         '''
         ##### TEMPORARY - plot filters
         # establish bounds
@@ -589,4 +587,3 @@ if __name__ == "__main__":
     '''
     
     #fig.savefig("figures/quenching_spectra.png", dpi=400)
-
