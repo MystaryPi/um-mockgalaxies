@@ -35,7 +35,6 @@ cosmo = FlatLambdaCDM(H0=70, Om0=.3)
 # read in a command-line argument for which output to plot where
 if len(sys.argv) > 0:
     outroot = sys.argv[1]
-    #plotdir = sys.argv[2]
 else:
     outroot = 'squiggle_1680728723_mcmc.h5'
 plotdir = 'plots/'
@@ -94,19 +93,20 @@ def stepInterp(ab, val, ts):
     ts: new values we want to interpolate to '''
     newval = np.zeros_like(ts) + np.nan
     for i in range(0,len(ab)):
-        newval[(ts <= ab[i,0]) & (ts > ab[i,1])] = val[i] #previously >= and <
+        newval[(ts >= ab[i,0]) & (ts < ab[i,1])] = val[i]  
     return newval    
 
-def opp_stepInterp(ab, val, ts):
+# TODO: remove this
+#def opp_stepInterp(ab, val, ts):
     # For some reason, the stepInterp value directions change (see inequalities)
     # Likely due to age vs LBT
-    '''ab: agebins vector
-    val: the original value (sfr, etc) that we want to interpolate
-    ts: new values we want to interpolate to '''
-    newval = np.zeros_like(ts) + np.nan
-    for i in range(0,len(ab)):
-        newval[(ts >= ab[i,0]) & (ts < ab[i,1])] = val[i] #previously >= and <
-    return newval   
+#    '''ab: agebins vector
+#    val: the original value (sfr, etc) that we want to interpolate
+#    ts: new values we want to interpolate to '''
+#    newval = np.zeros_like(ts) + np.nan
+#    for i in range(0,len(ab)):
+#        newval[(ts >= ab[i,0]) & (ts < ab[i,1])] = val[i] #previously >= and <
+#    return newval   
 
 def intersection_function(x, y1, y2):
     """Find the intercept of two curves, given by the same x data"""
@@ -157,13 +157,13 @@ tflex=2
 nflex=5
 nfixed=3
 #Edited for new PSB model: youngest bin is 'tquench' long, and it is preceded by 'nflex' young flexible bins, then 'nfixed' older fixed bins
-
+'''
 def priors(tflex=tflex, nflex=nflex, nfixed=nfixed, tquench=0.2):
-        '''set smarter priors on the logSFR ratios. given a 
+        #set smarter priors on the logSFR ratios. given a 
         redshift zred, use the closest-z universe machine SFH
         to set a better guess than a constant SFR. returns
         agebins, logmass, and set of logSFR ratios that are
-        self-consistent. '''
+        self-consistent. 
 
         # define default agebins
         agelims = np.array([1, tquench*1e9] + \
@@ -271,24 +271,20 @@ def log_likelihood(theta, x, y, yerr):
         test = -0.5 * np.sum((y - model) ** 2 / sigma2 + np.log(sigma2))
 
         return test
+
+'''
   
 ##############################################################################  
     
 # grab results (dictionary), the obs dictionary, and our corresponding models
-res, obs_mcmc, mod = results_from("{}".format(outroot), dangerous=True) # previously obs too??
+res, obs, mod = results_from("{}".format(outroot), dangerous=True) # This displays the model parameters too
 print("{}".format(outroot))
 sps = get_sps(res)
 
-with np.load('obs-z3/umobs_'+str(obs_mcmc['objid'])+'.npz', allow_pickle=True) as d:
-    obs = d['obs'].item()
-    gal = d['gal']
-    spsdict = d['params'].item()
-
-'''
-obs = (np.load('obs-z3/umobs_'+str(obs_mcmc['objid'])+'.npz', allow_pickle=True))['obs']
+#obs = (np.load('obs-z3/umobs_'+str(obs_mcmc['objid'])+'.npz', allow_pickle=True))['obs']
 gal = (np.load('obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
 spsdict = (np.load('obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
-'''
+
 
 print('Object ID: ' + str(obs['objid']))
 
@@ -301,7 +297,6 @@ if not os.path.exists(plotdir):
 ##############################################################################  
 
 # traceplot
-
 tracefig = traceplot(res, figsize=(10,5))
 # make sure directory exists
 if not os.path.exists(plotdir+'trace'):
@@ -321,7 +316,6 @@ plt.close()
 '''
 
 ##############################################################################  
-
 # corner plot
 # maximum a posteriori (of the locations visited by the MCMC sampler)
 # also put “truth” = input values for e.g. stellar mass, dust, metallicity, 
@@ -335,12 +329,9 @@ plt.close()
 #['zred','logzsol','dust2','logmass','tlast','logsfr_ratio_young','logsfr_ratio_old_1','logsfr_ratio_old_2',
 # 'logsfr_ratio_old_3','logsfr_ratios_1','logsfr_ratios_2','logsfr_ratios_3','logsfr_ratios_4','dust_index']
 
-truth_array = [spsdict['zred'], spsdict['logzsol'], spsdict['dust2'], obs['logM'], 0, 0, 0, 0, 0, 0, 0, 0, 0, spsdict['dust_index']]
-#truth_array = [spsdict['zred'], spsdict['logzsol'], spsdict['dust2'], 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, spsdict['dust_index']]
-
+truth_array = [gal['z'], spsdict['logzsol'], spsdict['dust2'], obs['logM'], 0, 0, 0, 0, 0, 0, 0, 0, 0, spsdict['dust_index']]
 imax = np.argmax(res['lnprobability'])
 theta_max = res['chain'][imax, :].copy()
-
 
 print('MAP value: {}'.format(theta_max))
 fig, axes = plt.subplots(len(theta_max), len(theta_max), figsize=(15,15))
@@ -359,9 +350,11 @@ print('Made cornerplot')
 
 # look at sed & residuals
 # generate model at MAP value
-mspec_map, mphot_map, _ = mod.mean_model(theta_max, obs, sps=sps) #usually in restframe
+mspec_map, mphot_map, _ = mod.mean_model(theta_max, obs, sps=sps) #usually in restframe, in maggies
 # wavelength vectors
-a = 1.0 + mod.params.get('zred', 0.0) # cosmological redshifting
+#a = 1.0 + mod.params.get('zred', 0.0) # cosmological redshifting # FIXED ZRED
+a = 1.0 + spsdict['zred']
+
 # photometric effective wavelengths
 wphot = np.array(obs["wave_effective"]) #is this correct?
 # spectroscopic wavelengths
@@ -383,7 +376,11 @@ allmfrac = np.zeros((len(idx)))
 
 for ii, i in enumerate(idx):
     # wavelength obs = wavelength rest * (1+z), so this is observed wavelength
-    allspec[0,:,ii] = sps.wavelengths.copy() * (1+res['chain'][i, mod.theta_index['zred']]) 
+    if 'zred' in mod.theta_index:
+        allspec[0,:,ii] = sps.wavelengths.copy() * (1+res['chain'][i, mod.theta_index['zred']]) # array of zred
+    else:
+        allspec[0,:,ii] = sps.wavelengths.copy() * (1+obs['zred']) # array of zred
+    
     allspec[1,:,ii], allphot[:,ii], allmfrac[ii] = mod.mean_model(res['chain'][i,:], obs, sps=sps)
 phot16 = np.array([quantile(allphot[i,:], 16, weights = weights[idx]) for i in range(allphot.shape[0])])
 phot50 = np.array([quantile(allphot[i,:], 50, weights = weights[idx]) for i in range(allphot.shape[0])])
@@ -410,36 +407,36 @@ ax[0].errorbar(wphot, obs['maggies'] * c/(wphot/(1+obs['zred']))**2, yerr=obs['m
 ax[0].plot(wspec, mspec_map * c/(wspec/(1+obs['zred']))**2., label='Model spectrum', lw=1.5, color='grey', alpha=0.7, zorder=10)
 '''
 
-###### FULL CONVERSION TO MAKE_SPECTRUM.PY
+###### PLOTS IN FLAM ###### 
+def convertMaggiesToFlam(w, maggies):
+    # converts maggies to f_lambda units
+    # For OBS DICT photometries - use w as obs['wave_effective'] - observed wavelengths 
+    c = 2.99792458e18 #AA/s
+    flux_fnu = maggies * 10**-23 * 3631 # maggies to cgs fnu
+    flux_flambda = flux_fnu * c/w**2 # v Fnu = lambda Flambda
+    return flux_flambda
+
 # wphot = wave_effective
-c = 2.99792458e8 #m/s
-ax[0].errorbar(wphot, (phot50*c/(wphot/(1+obs['zred']))**2.), label='Model photometry',
-               yerr = (phot84-phot16), marker='s', markersize=10, alpha=0.8, ls='', lw=3, 
-               markerfacecolor='none', markeredgecolor='green', markeredgewidth=3)
-ax[0].errorbar(wphot, (obs['maggies']*c/(wphot/(1+obs['zred']))**2.), yerr=(obs['maggies_unc']*c/(wphot/(1+obs['zred']))**2.), label='Observed photometry', ecolor='red', 
+ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map), label='MAP Model spectrum',
+       lw=1.5, color='grey', alpha=0.7, zorder=10)    
+ax[0].errorbar(wphot, convertMaggiesToFlam(wphot, phot50), label='Model photometry',
+         yerr = convertMaggiesToFlam(wphot, phot84) - convertMaggiesToFlam(wphot,phot16),
+         marker='s', markersize=10, alpha=0.8, ls='', lw=3, 
+         markerfacecolor='none', markeredgecolor='green', 
+         markeredgewidth=3)
+ax[0].errorbar(wphot, convertMaggiesToFlam(wphot, obs['maggies']), yerr=convertMaggiesToFlam(wphot, obs['maggies_unc']), 
+         label='Observed photometry', ecolor='red', 
          marker='o', markersize=10, ls='', lw=3, alpha=0.8, 
          markerfacecolor='none', markeredgecolor='black', 
-         markeredgewidth=3)
-# MAP Model spectrum
-ax[0].plot(wspec, mspec_map * c/(wspec/a)**2, label='Model spectrum', lw=1.5, color='grey', alpha=0.7, zorder=10)
-ax[0].set_yscale('log')
-
-#ax[0].errorbar(wphot[0:6], (phot50*c/wphot**2.)[0:6], label='Model photometry (UNCOVER)', yerr = (phot84-phot16)[0:6], marker='s', markersize=10, alpha=0.8, ls='', lw=3, markerfacecolor='none', markeredgecolor='blue', markeredgewidth=3)
-#ax[0].errorbar(wphot[7:], (phot50*c/wphot**2.)[7:], label='Model photometry (UNCOVER + Mega Science)', yerr = (phot84-phot16)[7:], marker='s', markersize=10, alpha=0.8, ls='', lw=3, markerfacecolor='none', markeredgecolor='green', markeredgewidth=3)  
-         
-# originaly maggies * c/wphot**2
-#norm_wl = ((wspec>6300) & (wspec<6500))
-#norm = np.nanmax(obs['maggies']*c/wphot**2)
-#ax[0].set_ylim((-0.2*norm, norm*2))
-ax[0].set_ylim((1e-10, 1e-6))
+         markeredgewidth=3)            
+     
 ax[0].set_xlim((1e3, 1e5))
-ax[0].set_xlabel('Observed Wavelength (' + r'$\AA$' + ')', fontsize=12)
-ax[0].set_ylabel(r'$F_{\nu}$', fontsize=12) # in maggies
+ax[0].set_xlabel('Observed Wavelength (' + r'$\AA$' + ')', fontsize=10)
+ax[0].set_ylabel(r"F$_\lambda$ in ergs/s/cm$^2$/AA", fontsize=10) # in flam units
 ax[0].set_xscale('log')
-#ax[0].set_yscale('log')
-ax[0].legend(loc='best', fontsize=12)
+ax[0].legend(loc='best', fontsize=9)
 ax[0].set_title(str(int(obs['objid'])))
-ax[0].tick_params(axis='both', which='major', labelsize=12)
+ax[0].tick_params(axis='both', which='major', labelsize=10)
 print('Made spectrum plot')
 
 ######################## SFH for FLEXIBLE continuity model ########################
@@ -453,18 +450,18 @@ um_sfh = gal['sfh'][:,1]
 # actual sfh percentiles
 flatchain = res["chain"]
 niter = res['chain'].shape[-2]
-tmax = cosmo.age(np.min(flatchain[:,mod.theta_index['zred']])).value #matches scales
+if 'zred' in mod.theta_index:
+    tmax = cosmo.age(np.min(flatchain[:,mod.theta_index['zred']])).value #matches scales
+else: 
+    tmax = cosmo.age(obs['zred']).value
 
 # will need to interpolate to get everything on same time scale
 # make sure this matches b/t two model types!
-#if tmax > 2:
-#    age_interp = np.concatenate((np.arange(0,2,.001),np.arange(2,tmax,.01),[tmax])) #np.append(np.arange(0, tuniv, 0.01), tuniv)
-#else:
-#    age_interp = np.arange(0,tmax+.005, .001)    
-age_interp = np.arange(0,tmax+.005, .001)  #in age
+if tmax > 2:
+    age_interp = np.concatenate((np.arange(0,2,.001),np.arange(2,tmax,.01),[tmax])) #np.append(np.arange(0, tuniv, 0.01), tuniv)
+else:
+    age_interp = np.arange(0,tmax+.005, .001)    
 age_interp[0] = 1e-9    
-
-#temp_logmass_array = np.array([])
 
 # actual sfh percentiles
 allsfrs = np.zeros((flatchain.shape[0], len(mod.params['agebins'])))
@@ -475,7 +472,7 @@ for iteration in range(flatchain.shape[0]):
     logr_young = np.clip(flatchain[iteration, mod.theta_index['logsfr_ratio_young']], -7, 7)
     logr_old = np.clip(flatchain[iteration, mod.theta_index['logsfr_ratio_old']], -7, 7)
     try:
-        logmass = flatchain[iteration, mod.theta_index['massmet']][0] 
+        logmass = flatchain[iteration, mod.theta_index['massmet']][0] # not what we are using
     except:
         logmass = flatchain[iteration, mod.theta_index["logmass"]]      
     agebins = psb_logsfr_ratios_to_agebins(logsfr_ratios=logr, agebins=mod.params['agebins'], 
@@ -521,7 +518,7 @@ totmassPercent = np.array([quantile(totmasscum_interp[:,i], [16,50,84], weights=
 totmassPercent = np.concatenate((age_interp[:,np.newaxis], totmassPercent), axis=1) # add time
 
 # all percentiles...
-percentiles = get_percentiles(res, mod)
+percentiles = get_percentiles(res, mod) # stores 16 50 84 percentiles for dif parameters
 
 # mass fraction in the last Gyr
 massFrac = 1 - massPercent[age_interp==1, 1:].flatten()[::-1]  
@@ -562,46 +559,38 @@ t_plot = t_plot[::-1]
 
 ###### SFH ADJUSTED PLOTS ##############
 # One-dimensional linear interpolation.
-age_array = [x for x in cosmo.age(gal['sfh'][:,0]).value[-1] - age_interp if x >= 0] # age_interp is in LOOK BACK TIME #age_array in age
+# age_interp is in LOOK BACK TIME 
+# tage =  tmax - LBT 
+# LBT = tmax - tage
+
+# First convert age_interp to age
 #sfhadjusted_lower = np.interp(cosmo.age(gal['sfh'][:,0]).value, age_interp, sfrPercent[:,1])
 #sfhadjusted = np.interp(cosmo.age(gal['sfh'][:,0]).value, age_interp, sfrPercent[:,2])
-#sfhadjusted_upper = np.interp(cosmo.age(gal['sfh'][:,0]).value, age_interp, sfrPercent[:,3])
+#sfhadjusted_upper = np.interp(cosmo.age(gal['sfh'][:,0]).value, tmax - age_interp, sfrPercent[:,3])
 
-sfhadjusted = sfrPercent[:,2][0:len(age_array)][::-1]
-sfhadjusted_upper = sfrPercent[:,3][0:len(age_array)][::-1]
-sfhadjusted_lower = sfrPercent[:,1][0:len(age_array)][::-1]
+######## SFH PLOTTING in LBT ##########
+ax[1].fill_between(age_interp, sfrPercent[:,1], sfrPercent[:,3], color='grey', alpha=.5)
+ax[1].plot(age_interp, sfrPercent[:,2], color='black', lw=1.5, label='Output SFH') #age_interp in Gyr
 
-######## SFH PLOTTING ##########
-ax[1].plot(cosmo.age(gal['sfh'][:,0]).value, um_sfh, label='Input SFH', color='blue', lw=1, marker="o") # INPUT SFH
+#ax[1].fill_between(cosmo.age(gal['sfh'][:,0]).value, sfhadjusted_lower, sfhadjusted_upper, color='grey', alpha=.5)
+#ax[1].plot(cosmo.age(gal['sfh'][:,0]).value, sfhadjusted, '-o', label = 'Output SFH', color='black', lw=1) # OUTPUT SFH
+# Convert x-axis from age to LBT
+ax[1].plot(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, label='Input SFH', color='blue', lw=1, marker="o") # INPUT SFH
+
 #label='Input SFH (z = {0:.3f})'.format(spsdict['zred'])
-
-ax[1].plot(age_array, sfhadjusted, '-o', label = 'Output SFH', color='black', lw=1.5) # OUTPUT SFH
 #label='Output SFH (z = {0:.3f})'.format(mod.params['zred'][0])
-
-'''
-for index in range(len(sfhadjusted_upper)):
-    if np.isnan(sfhadjusted_upper[index]):
-        print(index)
-        sfhadjusted_upper[index] = (sfhadjusted[index] - sfhadjusted_lower[index]) + sfhadjusted[index]
-'''
-        
-ax[1].fill_between(age_array, sfhadjusted_lower, sfhadjusted_upper, color='grey', alpha=.5) # OUTPUT ERROR BARS
-
 #ax[1].plot(t_plot, sfr_ml[::-1], 'g--', lw=2, label='Maximum Likelihood SFH') # MLE SFH
-
 #ax[1].plot([], [], ' ', label='Input mass: {0:.3f}, MLE output mass: {1:.3f}'.format(np.log10(mtot_init), np.log10(soln.x[9]))) # MLE MASS ESTIMATE
 
-# non interpolated plots
-#ax[1].fill_between(age_interp, sfrPercent[:,1], sfrPercent[:,3], color='grey', alpha=.5)
-#ax[1].plot(age_interp, sfrPercent[:,2], label='Output SFH', color='black', lw=1.5, marker="o")
-
-ax[1].set_xlim(0, cosmo.age(gal['sfh'][:,0]).value[-1])
+ax[1].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
 ax[1].set_yscale('log')
 #ax[1].legend(loc='best', fontsize=14)
-ax[1].tick_params(axis='both', which='major', labelsize=12)
-ax[1].set_ylabel('SFR [' + r'$M_{\odot} /yr$' + ']', fontsize = 12)
+ax[1].tick_params(axis='both', which='major', labelsize=10)
+ax[1].set_ylabel('SFR [' + r'$M_{\odot} /yr$' + ']', fontsize = 10)
 #ax[1].set_xlabel('years before observation [Gyr]')
-ax[1].set_xlabel('Age [Gyr]', fontsize = 12)
+ax[1].set_xlabel('Lookback Time [Gyr]', fontsize = 10)
+
+print('Finished SFH')
 
 
 # plot sfh and percentiles
@@ -610,7 +599,7 @@ ax[1].set_xlabel('Age [Gyr]', fontsize = 12)
 #ax[1].set_ylabel('SFR [Msun/yr]')
 #ax[1].set_xlabel('years before observation [Gyr]')
 
-plt.show()
+
 # add secondary axis for redshift
 #x_formatter = [1, 2, 3, 5, 7, 10, 15]
 #x_locator = [5.75164694, 3.22662706, 2.11252719, 1.15475791, 0.75081398, 0.46588724, 0.26562898]
@@ -621,34 +610,61 @@ plt.show()
 #secax.set_xlabel('Redshift [z]') 
  
 ######## Derivative for SFH ###########
+# Eliminates 0 values from the SFHs, which can skew the derivative; limits quenchtime search for output
+# SFH to only be within input SFH's range
+input_mask = [i for i in enumerate(um_sfh) if i == 0]
+output_mask = [i for i, n in enumerate(sfrPercent[:,2]) if n == 0]
+
+input_sfh = um_sfh
+input_lbt = cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value
+output_sfh = sfrPercent[:,2]
+output_lbt = age_interp
+
+for i in sorted(input_mask, reverse=True):
+    input_sfh = np.delete(input_sfh, i)
+    input_lbt = np.delete(input_lbt, i)
+for i in sorted(output_mask, reverse=True):
+    output_sfh = np.delete(output_sfh, i)
+    output_lbt = np.delete(output_lbt, i)
+
+lbtLimit = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)[0]
+output_lbt_mask = [i for i, n in enumerate(output_lbt) if n > lbtLimit]
+for i in sorted(output_lbt_mask, reverse=True): # go in reverse order to prevent indexing error
+    output_sfh = np.delete(output_sfh, i)
+    output_lbt = np.delete(output_lbt, i)
+
 # Find derivatives of input + output SFH, age is adjusted b/c now difference between points
-y_d_input = np.diff(um_sfh) / np.diff(cosmo.age(gal['sfh'][:,0]).value)
-y_d_output = np.diff(sfhadjusted) / np.diff(cosmo.age(gal['sfh'][:,0]).value)
-x_d = (np.array(cosmo.age(gal['sfh'][:,0]).value)[:-1] + np.array(cosmo.age(gal['sfh'][:,0]).value)[1:]) / 2
+y_d_input = np.diff(input_sfh) / np.diff(input_lbt)
+y_d_output = np.diff(output_sfh) / np.diff(output_lbt)
+x_d_input = (np.array(input_lbt)[:-1] + np.array(input_lbt)[1:]) / 2
+x_d_output = (np.array(output_lbt)[:-1] + np.array(output_lbt)[1:]) / 2
 
 # Use intersect package to determine where derivatives intersect the quenching threshold
-x_i, y_i = intersection_function(x_d, np.full(len(x_d), -100), y_d_input)
-x_o, y_o = intersection_function(x_d, np.full(len(x_d), -100), y_d_output)
+x_i, y_i = intersection_function(x_d_input, np.full(len(x_d_input), -100), y_d_input)
+x_o, y_o = intersection_function(x_d_output, np.full(len(x_d_output), -100), y_d_output)
 
 # Plot derivative for input + output SFH, + quenching threshold from Wren's paper
 # Plot vertical lines for the quench time on the SFH plot
 if len(x_i) != 0:
-    ax[2].plot(x_d, y_d_input, '-o', color='blue', lw=1.5, label='Input SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_i[-1])))[2:-2] + ' Gyr)')
+    ax[2].plot(x_d_input, y_d_input, '-o', color='blue', lw=1.5, label='Input SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_i[-1])))[2:-2] + ' Gyr)')
     ax[1].axvline(x_i[-1], linestyle='--', lw=1, color='blue')
 else:
-    ax[2].plot(x_d, y_d_input, '-o', color='blue', lw=1.5, label='Input SFH time derivative (does not pass quenching threshold)')
+    ax[2].plot(x_d_input, y_d_input, '-o', color='blue', lw=1.5, label='Input SFH time derivative (does not pass quenching threshold)')
 
 if len(x_o != 0):
-    ax[2].plot(x_d, y_d_output, '-o', color='black', lw=1.5, label='Output SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_o[-1])))[2:-2] + ' Gyr)')
+    ax[2].plot(x_d_output, y_d_output, '-o', color='black', lw=1.5, label='Output SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_o[-1])))[2:-2] + ' Gyr)')
     ax[1].axvline(x_o[-1], linestyle='--', lw=1, color='black')
 else: 
-    ax[2].plot(x_d, y_d_output, '-o', color='black', lw=1.5, label='Output SFH time derivative (does not pass quenching threshold')
+    ax[2].plot(x_d_output, y_d_output, '-o', color='black', lw=1.5, label='Output SFH time derivative (does not pass quenching threshold')
 ax[2].axhline(-100, linestyle='--', color='maroon', label='-100 ' + r'$M_{\odot} yr^{-2}$' + ' quenching threshold') # Quench threshold
 
-ax[2].set_ylabel("SFH Time Derivative " + r'$[M_{\odot} yr^{-2}]$', fontsize=12)
-ax[2].set_xlabel('Age [Gyr]', fontsize=12)
-ax[2].legend(loc='best', fontsize=12)
-ax[2].tick_params(axis='both', which='major', labelsize=12)
+ax[2].set_ylabel("SFH Time Derivative " + r'$[M_{\odot} yr^{-2}]$', fontsize=10)
+ax[2].set_xlabel('Lookback Time [Gyr]', fontsize=10)
+ax[2].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
+ax[2].legend(loc='best', fontsize=9)
+ax[2].tick_params(axis='both', which='major', labelsize=10)
+
+print('Finished derivative plot')
 
 # cumulative mass fraction plot
 #ax[2].fill_between(age_interp, massPercent[:,1], massPercent[:,3], color='grey', alpha=.5)
@@ -656,7 +672,7 @@ ax[2].tick_params(axis='both', which='major', labelsize=12)
 #ax[2].set_xlim((tmax+.1,-.1))
 #ax[2].set_ylabel('Cumulative mass fraction')
 #ax[2].set_xlabel('years before observation [Gyr]')
-
+plt.show()
 # save plot
 fig.tight_layout()
 if not os.path.exists(plotdir+'sfh'):
@@ -689,4 +705,3 @@ if not os.path.exists('dicts/'):
     os.mkdir('dicts/')
 np.savez('dicts/'+str(obs['objid'])+'.npz', res=out)
 '''
-
