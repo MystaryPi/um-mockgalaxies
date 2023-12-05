@@ -54,7 +54,7 @@ run_params = {'verbose':True, #this controls how much output to screen
               'add_dust': True,
               # SPS parameters
               'zcontinuous': 1,
-              'zred': None, #should be a free parameter
+              'zred': 3.0015846275124947, #should be a free parameter
               # --- SFH parameters ---
               # 'agelims': [0.0,7.4772,8.0,8.5,9.0,9.5,9.8,10.0],
               # 'tquench': .2,
@@ -117,7 +117,7 @@ def load_obs(objid, **kwargs):
     print('loading ID '+str(objid))      
 
     # load file obs dictionary 
-    with np.load('obs-z3/umobs_'+str(objid)+'.npz', allow_pickle=True) as d:
+    with np.load('obs/umobs_'+str(objid)+'.npz', allow_pickle=True) as d:
         obs = d['obs'].item()
         gal = d['gal']
         sps = d['params'].item()  
@@ -270,7 +270,3 @@ def load_model(zred=None, zphot=None, fixed_metallicity=None, add_dust=False,
 
     return model    
             
-    
-    
-    
-  
