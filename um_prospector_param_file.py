@@ -202,9 +202,15 @@ def load_model(zred=None, zphot=None, fixed_metallicity=None, add_dust=False,
     elif zphot is not None:
         model_params['zred'] = {'N':1, 'isfree':True, 'init': zphot, 'prior':priors.TopHat(mini=0, maxi=10)}
     else: #if zred is none + zphot is none
-        model_params['zred'] = {'N':1, 'isfree':True, 'init': 1, 'prior':priors.TopHat(mini=0, maxi=5)} #set zred to value 
+        model_params['zred'] = {'N':1, 'isfree':True, 'init': 2, 'prior':priors.TopHat(mini=0, maxi=5)} #set zred to value 
         #adjusted to 0 to 5 (where most quenched galaxies are)
-    	
+    
+    # set tlast 
+    # maximum of tlast should be 0.3 * the age of the universe at the redshift
+    # tflex is set to 0.6 * age of the universe at the redshift
+    model_params['tlast']['prior'] = priors.TopHat(mini=0.01,maxi=0.3*cosmo.age(model_params['zred']['init']).value)
+    model_params['tflex']['init'] = 0.6*cosmo.age(model_params['zred']['init']).value
+
     # set IMF to chabrier (default is kroupa)
     model_params['imf_type']['init'] = 1
                                             
@@ -267,4 +273,4 @@ def load_model(zred=None, zphot=None, fixed_metallicity=None, add_dust=False,
     
     
     
-    
+  
