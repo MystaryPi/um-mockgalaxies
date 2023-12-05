@@ -96,18 +96,6 @@ def stepInterp(ab, val, ts):
         newval[(ts >= ab[i,0]) & (ts < ab[i,1])] = val[i]  
     return newval    
 
-# TODO: remove this
-#def opp_stepInterp(ab, val, ts):
-    # For some reason, the stepInterp value directions change (see inequalities)
-    # Likely due to age vs LBT
-#    '''ab: agebins vector
-#    val: the original value (sfr, etc) that we want to interpolate
-#    ts: new values we want to interpolate to '''
-#    newval = np.zeros_like(ts) + np.nan
-#    for i in range(0,len(ab)):
-#        newval[(ts >= ab[i,0]) & (ts < ab[i,1])] = val[i] #previously >= and <
-#    return newval   
-
 def intersection_function(x, y1, y2):
     """Find the intercept of two curves, given by the same x data"""
 
@@ -282,8 +270,8 @@ print("{}".format(outroot))
 sps = get_sps(res)
 
 #obs = (np.load('obs-z3/umobs_'+str(obs_mcmc['objid'])+'.npz', allow_pickle=True))['obs']
-gal = (np.load('obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-spsdict = (np.load('obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+gal = (np.load('obs/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+spsdict = (np.load('obs/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
 
 print('Object ID: ' + str(obs['objid']))
@@ -519,6 +507,7 @@ totmassPercent = np.concatenate((age_interp[:,np.newaxis], totmassPercent), axis
 
 # all percentiles...
 percentiles = get_percentiles(res, mod) # stores 16 50 84 percentiles for dif parameters
+print(percentiles) # prints percentiles
 
 # mass fraction in the last Gyr
 massFrac = 1 - massPercent[age_interp==1, 1:].flatten()[::-1]  
@@ -584,14 +573,13 @@ ax[1].plot(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_s
 
 ax[1].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
 ax[1].set_yscale('log')
-#ax[1].legend(loc='best', fontsize=14)
+ax[1].legend(loc='best', fontsize=9)
 ax[1].tick_params(axis='both', which='major', labelsize=10)
 ax[1].set_ylabel('SFR [' + r'$M_{\odot} /yr$' + ']', fontsize = 10)
 #ax[1].set_xlabel('years before observation [Gyr]')
 ax[1].set_xlabel('Lookback Time [Gyr]', fontsize = 10)
 
 print('Finished SFH')
-
 
 # plot sfh and percentiles
 #ax[1].fill_between(age_interp, sfrPercent[:,1], sfrPercent[:,3], color='grey', alpha=.5)
@@ -615,8 +603,8 @@ print('Finished SFH')
 input_mask = [i for i in enumerate(um_sfh) if i == 0]
 output_mask = [i for i, n in enumerate(sfrPercent[:,2]) if n == 0]
 
-input_sfh = um_sfh
-input_lbt = cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value
+input_sfh = um_sfh[::-1]
+input_lbt = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)[::-1]
 output_sfh = sfrPercent[:,2]
 output_lbt = age_interp
 
@@ -634,33 +622,36 @@ for i in sorted(output_lbt_mask, reverse=True): # go in reverse order to prevent
     output_lbt = np.delete(output_lbt, i)
 
 # Find derivatives of input + output SFH, age is adjusted b/c now difference between points
-y_d_input = np.diff(input_sfh) / np.diff(input_lbt)
-y_d_output = np.diff(output_sfh) / np.diff(output_lbt)
+y_d_input = -np.diff(input_sfh) / np.diff(input_lbt) 
+y_d_output = -np.diff(output_sfh) / np.diff(output_lbt)
 x_d_input = (np.array(input_lbt)[:-1] + np.array(input_lbt)[1:]) / 2
 x_d_output = (np.array(output_lbt)[:-1] + np.array(output_lbt)[1:]) / 2
 
 # Use intersect package to determine where derivatives intersect the quenching threshold
-x_i, y_i = intersection_function(x_d_input, np.full(len(x_d_input), -100), y_d_input)
-x_o, y_o = intersection_function(x_d_output, np.full(len(x_d_output), -100), y_d_output)
+x_i, y_i = intersection_function(x_d_input, np.full(len(x_d_input), -500), y_d_input)
+x_o, y_o = intersection_function(x_d_output, np.full(len(x_d_output), -500), y_d_output)
 
 # Plot derivative for input + output SFH, + quenching threshold from Wren's paper
 # Plot vertical lines for the quench time on the SFH plot
 if len(x_i) != 0:
-    ax[2].plot(x_d_input, y_d_input, '-o', color='blue', lw=1.5, label='Input SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_i[-1])))[2:-2] + ' Gyr)')
-    ax[1].axvline(x_i[-1], linestyle='--', lw=1, color='blue')
+    ax[2].plot(x_d_input, y_d_input, '-o', color='blue', lw=1.5, label='Input SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_i[0])))[2:-2] + ' Gyr)')
+    ax[1].axvline(x_i[0], linestyle='--', lw=1, color='blue')
+    ax[2].axvline(x_i[0], linestyle='--', lw=1, color='blue')
 else:
     ax[2].plot(x_d_input, y_d_input, '-o', color='blue', lw=1.5, label='Input SFH time derivative (does not pass quenching threshold)')
 
 if len(x_o != 0):
-    ax[2].plot(x_d_output, y_d_output, '-o', color='black', lw=1.5, label='Output SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_o[-1])))[2:-2] + ' Gyr)')
-    ax[1].axvline(x_o[-1], linestyle='--', lw=1, color='black')
+    ax[2].plot(x_d_output, y_d_output, '-o', color='black', lw=1.5, label='Output SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_o[0])))[2:-2] + ' Gyr)')
+    ax[1].axvline(x_o[0], linestyle='--', lw=1, color='black')
+    ax[2].axvline(x_o[0], linestyle='--', lw=1, color='black')
 else: 
-    ax[2].plot(x_d_output, y_d_output, '-o', color='black', lw=1.5, label='Output SFH time derivative (does not pass quenching threshold')
-ax[2].axhline(-100, linestyle='--', color='maroon', label='-100 ' + r'$M_{\odot} yr^{-2}$' + ' quenching threshold') # Quench threshold
+    ax[2].plot(x_d_output, y_d_output, '-o', color='black', lw=1.5, label='Output SFH time derivative (does not pass quenching threshold)')
+ax[2].axhline(-500, linestyle='--', color='maroon', label='-500 ' + r'$M_{\odot} yr^{-2}$' + ' quenching threshold') # Quench threshold
 
 ax[2].set_ylabel("SFH Time Derivative " + r'$[M_{\odot} yr^{-2}]$', fontsize=10)
 ax[2].set_xlabel('Lookback Time [Gyr]', fontsize=10)
 ax[2].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
+ax[2].set_ylim(-1000, 1000)
 ax[2].legend(loc='best', fontsize=9)
 ax[2].tick_params(axis='both', which='major', labelsize=10)
 
