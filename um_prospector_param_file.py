@@ -54,7 +54,7 @@ run_params = {'verbose':True, #this controls how much output to screen
               'add_dust': True,
               # SPS parameters
               'zcontinuous': 1,
-              'zred': 3.0015846275124947, #should be a free parameter
+              'zred': None, #should be a free parameter
               # --- SFH parameters ---
               # 'agelims': [0.0,7.4772,8.0,8.5,9.0,9.5,9.8,10.0],
               # 'tquench': .2,
@@ -202,7 +202,7 @@ def load_model(zred=None, zphot=None, fixed_metallicity=None, add_dust=False,
     elif zphot is not None:
         model_params['zred'] = {'N':1, 'isfree':True, 'init': zphot, 'prior':priors.TopHat(mini=0, maxi=10)}
     else: #if zred is none + zphot is none
-        model_params['zred'] = {'N':1, 'isfree':True, 'init': 2, 'prior':priors.TopHat(mini=0, maxi=5)} #set zred to value 
+        model_params['zred'] = {'N':1, 'isfree':True, 'init': 2, 'prior':priors.TopHat(mini=0, maxi=10)} #set zred to value 
         #adjusted to 0 to 5 (where most quenched galaxies are)
     
     # set tlast 
