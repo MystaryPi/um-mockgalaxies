@@ -74,7 +74,7 @@ def trap(x, y):
     # basic trapezoidal integration
     return np.sum((x[1:] - x[:-1]) * (y[1:] + y[:-1]))/2.     
 
-def loadUMachine(data_dir='/Users/michpark/JWST_Programs/mockgalaxies/', 
+def loadUMachine(data_dir='/Users/michpark/JWST_Programs/um-mockgalaxies/SFH_2048/', 
                  col_names=['gal_id', 'upID', 'VMpeak', 'Vmax', 'Mpeak', 'Mvir', 'Mstar', 'sfr'], 
                  remove_satellites=True):
     #data_dir='/oak/stanford/orgs/kipac/users/michpark/JWST_Programs/mockgalaxies/'
