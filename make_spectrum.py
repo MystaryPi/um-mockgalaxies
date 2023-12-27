@@ -2,6 +2,15 @@
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""
+Usage: 
+    run make_spectrum.py --mediumBands True --redshift 3
+    run make_spectrum.py (sets it to default options)
+
+Options:
+--mediumBands         True if medium bands (Mega Science filters) included. (Default true)
+--redshift            Set redshift. (Default 3)
+"""
 
 import sys
 import os
@@ -17,6 +26,19 @@ import sedpy
 
 # constants
 lsun = 3.826e33 # erg/s
+
+# Set up system arguments for medium bands with or without, redshift specifications
+# Default: mediumBands = true, redshift = 3
+mediumBands = True
+redshift = 3
+if("--mediumBands" in  sys.argv):
+    sysArgMB = sys.argv[sys.argv.index("--mediumBands") + 1]
+    if(sysArgMB == "True"): mediumBands = True
+    else: mediumBands = False       
+if("--redshift" in  sys.argv):
+    redshift = float(sys.argv[sys.argv.index("--redshift") + 1]) 
+    # account for formatting
+    if(redshift.is_integer()): redshift = int(redshift)
 
 # this is copied from gallazzi_05_massmet used in prospector
 # mass ranges, metallicity values, +/- 1 standard deviation errors
@@ -54,7 +76,7 @@ def trap(x, y):
 
 def loadUMachine(data_dir='/Users/michpark/JWST_Programs/mockgalaxies/', 
                  col_names=['gal_id', 'upID', 'VMpeak', 'Vmax', 'Mpeak', 'Mvir', 'Mstar', 'sfr'], 
-                 remove_satellites=True, redshift=3):
+                 remove_satellites=True):
     #data_dir='/oak/stanford/orgs/kipac/users/michpark/JWST_Programs/mockgalaxies/'
     
     ''' 
@@ -89,7 +111,6 @@ def loadUMachine(data_dir='/Users/michpark/JWST_Programs/mockgalaxies/',
     
     # Given redshift parameter, determines which UM SFH file to choose
     sfhFileName = 'SFH_sel_z' + str(redshift).replace('.', 'p') + '.txt'
-    
     um_path = glob(os.path.join(data_dir, sfhFileName)) 
 
     '''
@@ -111,6 +132,7 @@ def loadUMachine(data_dir='/Users/michpark/JWST_Programs/mockgalaxies/',
     # stored in dictionary below
 
     scales_dict = {
+        1: 74,
         2: 58,
         2.5: 52,
         3: 47,
@@ -369,7 +391,13 @@ def build_obs(filters, mags, gal, depths): #should be build_obs technically
     obs = {}
     obs['filters'] = filters
     obs['wave_effective'] = np.array([filt.wave_effective for filt in obs['filters']]) 
-    obs['phot_mask'] = [True]*len(maggies) #always true because our fake data is all good
+    if(mediumBands == True):
+        obs['phot_mask'] = [True]*len(maggies) #always true b/c our fake data is all good
+    else:
+        # No medium bands - exclude the bands that we don't need
+        obs['phot_mask'] = [True, True, True, True, True, True, True, False, False, False, 
+        False, False, False, False, False, False, False, False, False, False, False]
+    
     # make a mask -- photometry exists & errors are positive
     #obs['phot_mask'] = np.logical_and(np.isfinite(obs['maggies']),np.array(obs['maggies_unc']))
     obs['maggies'] = np.array(maggiesUnc)
@@ -431,12 +459,12 @@ if __name__ == "__main__":
         lsun = 3.846e+33
         
         z = sps.params['zred']
-        w, spec = sps.get_spectrum(tage=cosmo.age(z).value, peraa = False) # Lsun/Hz
+        w, spec = sps.get_spectrum(tage=cosmo.age(z).value, peraa = True) # Lsun/AA
         spec = spec * lsun / (4 * np.pi * (cosmo.luminosity_distance(z=z).value*1e6*pc)**2 * (1+z)) # erg/s/cm^2/AA (f_lamda))
 
         sfig, saxes = plt.subplots(2,1, figsize=(8, 6))
-        #saxes[0].plot(time_beginning, sfr, lw=1.2, alpha=.6)
-
+        saxes[0].plot(cosmo.age(gal['sfh'][:,0]).value, gal['sfh'][:,1], lw=1.2, alpha=.6)
+        
         ####### Plots in Flambda Units ########
         # Created new convertMaggiesToFlam function that will do a conversion to flambda given maggies (ALR inputs wave_eff)
         saxes[1].plot(w*(1+obs['zred']), spec, label='Galaxy spectrum',lw=1.5, color='grey', alpha=0.7, zorder=10)    
@@ -444,12 +472,12 @@ if __name__ == "__main__":
            alpha=0.8, ls='', lw=3, markerfacecolor='none', markeredgecolor='green', markeredgewidth=3)
         saxes[1].errorbar(obs['wave_effective'], convertMaggiesToFlam(obs['maggies']), yerr=convertMaggiesToFlam(obs['maggies_unc']), label='Observed photometry',
             ecolor='red', marker='o', markersize=10, ls='', lw=3, alpha=0.8, markerfacecolor='none', markeredgecolor='black', markeredgewidth=3)
-        
+
         saxes[1].set_xscale('log')
         saxes[1].set_xlim(1e3, 1e5)
         saxes[1].legend(loc='best', fontsize=10)
-        saxes[1].set_ylim(1e-10, 1e-6)
-        saxes[1].set_yscale('log')
+        #saxes[1].set_ylim(1e-10, 1e-6)
+        #saxes[1].set_yscale('log')
         saxes[1].set_xlabel("Observed wavelength (AA)")
         #text = saxes[1].text(1300, 10**-17.9, "Mass: " + str("%.3f" % logM[0]) + "\nMetallicity: " + str("%.3f" % logZ[0])) 
         # z = 0.974 
@@ -458,9 +486,9 @@ if __name__ == "__main__":
             
 
         saxes[0].set_yscale('log')
-        saxes[0].set_xlim(0,cosmo.age(2.5).value)
-        saxes[0].set_xlabel('Time since beginning of the universe (Gyr)')
-        saxes[0].set_ylabel('SFR')
+        saxes[0].set_xlim(0,cosmo.age(z).value)
+        saxes[0].set_xlabel('Age (Gyr)')
+        saxes[0].set_ylabel('Star Formation Rate (Msun/yr)')
         sfig.tight_layout()
         
         plt.show()

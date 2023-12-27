@@ -14,6 +14,7 @@ from scipy.stats import truncnorm
 import os
 from prospect.likelihood import NoiseModel
 from prospect.likelihood.kernels import Uncorrelated
+from prospect.utils.obsutils import fix_obs
 import glob
 from astropy.cosmology import z_at_value
 
@@ -45,6 +46,7 @@ run_params = {'verbose':True, #this controls how much output to screen
               'initial_disp': 0.1,            # default dispersion in parameters for walker ball
               # Obs data parameters
               'objid':0,
+              'mediumBands': True,
               #'catfile': '/Users/michpark/JWST_Programs/UNCOVER_DR1_LW_D032_catalog.fits',
               'phottable':None,                                     
               'logify_spectrum':False,
@@ -87,7 +89,7 @@ run_params = {'verbose':True, #this controls how much output to screen
 # --------------
 # OBS
 # --------------
-def load_obs(objid, **kwargs):
+def load_obs(objid, mediumBands, **kwargs):
     """Load an UniverseMachine spectrum.
              
     Load photometry from an ascii file.  Assumes the following columns:
@@ -121,8 +123,16 @@ def load_obs(objid, **kwargs):
         obs = d['obs'].item()
         gal = d['gal']
         sps = d['params'].item()  
+    if(mediumBands == True):
+        obs['phot_mask'] = [True]*len(obs['maggies']) #always true because our fake data is all good
+    else:
+        # No medium bands - exclude the bands that we don't need
+        obs['phot_mask'] = [True, True, True, True, True, True, True, False, False, False, 
+        False, False, False, False, False, False, False, False, False, False, False]
     
     obs['objid'] = objid
+    obs = fix_obs(obs)
+    assert 'phot_mask' in obs.keys()
      
     return obs
     
