@@ -57,6 +57,7 @@ run_params = {'verbose':True, #this controls how much output to screen
               # SPS parameters
               'zcontinuous': 1,
               'zred': None, #should be a free parameter
+              'tflex_frac': 0.6,
               # --- SFH parameters ---
               # 'agelims': [0.0,7.4772,8.0,8.5,9.0,9.5,9.8,10.0],
               # 'tquench': .2,
@@ -143,6 +144,111 @@ def load_obs(objid, mediumBands, **kwargs):
 def to_dust1(dust1_fraction=None, dust1=None, dust2=None, **extras):
     return dust1_fraction*dust2     
     
+
+# create a prior that we can use to jointly sample zred AND tq
+# (this is necessary because we want to set tq to a fixed fraction of age of universe)
+class ZphotTq(priors.Prior):
+    """ tophat prior in both photo-z AND tq """    
+    
+    prior_params = ['zred_mini', 'zred_maxi', 'tlast_mini', 'tlast_max_frac']
+    
+    def __init__(self, parnames=[], name='', **kwargs):
+        """Overwrites __init__ in the base code priors.Prior
+        """
+        # base code
+        if len(parnames) == 0:
+            parnames = self.prior_params
+        assert len(parnames) == len(self.prior_params)
+        self.alias = dict(zip(self.prior_params, parnames))
+        self.params = {}
+        self.name = name
+        self.update(**kwargs)
+
+        # put in the tophat redshift prior
+        self.zred_dist = priors.FastUniform(a=self.params['zred_mini'], b=self.params['zred_maxi'])    
+    
+    def __len__(self):
+        # work with prospector v0.3
+        return 2
+        
+    @property
+    def range(self):
+        return ((self.params['zred_mini'], self.params['zred_maxi']),\
+                (self.params['tlast_mini'], self.params['tlast_max_frac']))
+
+    def bounds(self, **kwargs):
+        if len(kwargs) > 0:
+            self.update(**kwargs)
+        return self.range
+
+    def __call__(self, x, **kwargs):
+        """Compute the value of the probability density function at x and
+        return the ln of that.
+
+        :params x:
+            x[0] = zred, x[1] = tq. Used to calculate the prior
+
+        :param kwargs: optional
+            All extra keyword arguments are used to update the `prior_params`.
+
+        :returns lnp:
+            The natural log of the prior probability at x, scalar or ndarray of
+            same length as the prior object.
+        """
+        if len(kwargs) > 0:
+            self.update(**kwargs)
+
+        # grab lnp for redshift 
+        lnp = np.zeros_like(x)
+        lnp[0] = self.zred_dist(x[0])
+        # generate tq prior at this z and get lnp
+        tuniv = cosmo.age(x[0]).value # in Gyr
+        tq_dist = priors.TopHat(mini=self.params['tlast_mini'], maxi=self.params['tlast_max_frac']*tuniv)
+        p[1] = tq_dist(x[1])
+        
+        return lnp
+
+
+    def sample(self, nsample=None, **kwargs):
+        """Draw a sample from the prior distribution.
+
+        :param nsample: (optional)
+            Unused
+        """
+        if len(kwargs) > 0:
+            self.update(**kwargs)
+        zphot = np.random.uniform(low=self.params['zred_mini'], high=self.params['zred_maxi'])
+        tuniv = cosmo.age(zphot).value
+        tq = np.random.uniform(low=self.params['tlast_mini'], high=self.params['tlast_max_frac']*tuniv)
+        return np.array([tuniv, tq])    
+
+    def unit_transform(self, x, **kwargs):
+        """Go from a value of the CDF (between 0 and 1) to the corresponding
+        parameter value.
+
+        :param x:
+            A scalar or vector of same length as the Prior with values between
+            zero and one corresponding to the value of the CDF.
+
+        :returns theta:
+            The parameter value corresponding to the value of the CDF given by
+            `x`.
+        """
+        if len(kwargs) > 0:
+            self.update(**kwargs)
+        mass = x[0]*(self.params['zred_mini'] - self.params['zred_maxi']) + self.params['zred_mini']
+        tuniv = cosmo.age(zphot).value
+        tq = x[1]*(self.params['tq_mini'] - self.params['tlast_max_frac']*tuniv) + self.params['tlast_mini']
+        return np.array([tuniv, tq])
+
+def zt_to_zred(zt=None,**extras):
+    return zt[0]
+
+def zt_to_tlast(zt=None,**extras):
+    return zt[1]
+    
+def z_to_tflex(zt=None,tflex_frac=None,**extras):
+    return tflex_frac * zt[0]    
     
 # --------------
 # SPS Object
@@ -179,7 +285,8 @@ def build_noise(**extras):
 def load_model(zred=None, zphot=None, fixed_metallicity=None, add_dust=False,
                add_neb=True, luminosity_distance=None, agelims=None, objname=None,
                catfile=None, binmax=None, tquench=None, 
-               tflex=None, nflex=None, nfixed=None, **extras):
+               tflex=None, nflex=None, nfixed=None, tflex_frac=None, **extras):          
+               
     """Construct a model.  This method defines a number of parameter
     specification dictionaries and uses them to initialize a
     `models.sedmodel.SedModel` object.
@@ -205,21 +312,31 @@ def load_model(zred=None, zphot=None, fixed_metallicity=None, add_dust=False,
     model_params = TemplateLibrary["continuity_psb_sfh"]
 
     # set the redshift
-    # if we give a spec-z, we should fix it there
-    # if we give a photo-z, we should let it vary but initialize it at the photo-z
+    # if we give a spec-z, we should fix it there AND set tlast
     if zred is not None:
         model_params['zred'] = {'N':1, 'isfree':False, 'init': zred, 'prior':priors.TopHat(mini=zred-0.1, maxi=zred+0.1)}
-    elif zphot is not None:
-        model_params['zred'] = {'N':1, 'isfree':True, 'init': zphot, 'prior':priors.TopHat(mini=0, maxi=10)}
-    else: #if zred is none + zphot is none
-        model_params['zred'] = {'N':1, 'isfree':True, 'init': 2, 'prior':priors.TopHat(mini=0, maxi=10)} #set zred to value 
-        #adjusted to 0 to 5 (where most quenched galaxies are)
+        model_params['tlast']['prior'] = priors.TopHat(mini=0.01,maxi=0.3*cosmo.age(model_params['zred']['init']).value)
+        odel_params['tflex']['init'] = tflex_frac*cosmo.age(model_params['zred']['init']).value
+    else:
+        # we're going to set a joint tophat prior on both zred AND tq
+        model_params['zt'] = {'N':2, 'isfree':True, 'init':[2, 0.1], 
+            'prior':ZphotTq(zred_mini=0, zred_maxi=10, tlast_mini=0.01, tlast_max_frac=0.3)}    
+        model_params['zred'] = {'N':1, 'isfree':False, 'depends_on':zt_to_zred, 'init':model_params['zt']['init'][0]}
+        model_params['tlast'] = {'N':1, 'isfree':False, 'depends_on':zt_to_tlast, 'init':model_params['zt']['init'][1]}   
+        model_params['tflex'] = {'N':1, 'isfree':False, 'depends_on':z_to_tflex, 'init':tflex_frac*model_params['zt']['init'][0]} 
+    model_params['tflex_frac'] = {'N':1, 'isfree':False, 'init':tflex_frac}    
+        
+    # elif zphot is not None:
+    #     model_params['zred'] = {'N':1, 'isfree':True, 'init': zphot, 'prior':priors.TopHat(mini=0, maxi=10)}
+    # else: #if zred is none + zphot is none
+    #     model_params['zred'] = {'N':1, 'isfree':True, 'init': 2, 'prior':priors.TopHat(mini=0, maxi=10)} #set zred to value
+    #     #adjusted to 0 to 5 (where most quenched galaxies are)
     
     # set tlast 
     # maximum of tlast should be 0.3 * the age of the universe at the redshift
     # tflex is set to 0.6 * age of the universe at the redshift
-    model_params['tlast']['prior'] = priors.TopHat(mini=0.01,maxi=0.3*cosmo.age(model_params['zred']['init']).value)
-    model_params['tflex']['init'] = 0.6*cosmo.age(model_params['zred']['init']).value
+    # model_params['tlast']['prior'] = priors.TopHat(mini=0.01,maxi=0.3*cosmo.age(model_params['zred']['init']).value)
+    # model_params['tflex']['init'] = 0.6*cosmo.age(model_params['zred']['init']).value
 
     # set IMF to chabrier (default is kroupa)
     model_params['imf_type']['init'] = 1
