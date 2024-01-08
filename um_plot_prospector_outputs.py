@@ -159,8 +159,8 @@ print("{}".format(outroot))
 sps = get_sps(res)
 
 #obs = (np.load('obs-z3/umobs_'+str(obs_mcmc['objid'])+'.npz', allow_pickle=True))['obs']
-gal = (np.load('obs/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-spsdict = (np.load('obs/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
 
 print('Object ID: ' + str(obs['objid']))
@@ -301,12 +301,12 @@ def convertMaggiesToFlam(w, maggies):
 # wphot = wave_effective
 ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map), label='MAP Model spectrum',
        lw=1.5, color='grey', alpha=0.7, zorder=10)    
-ax[0].errorbar(wphot, convertMaggiesToFlam(wphot, phot50), label='Model photometry',
-         yerr = convertMaggiesToFlam(wphot, phot84) - convertMaggiesToFlam(wphot,phot16),
+ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], label='Model photometry',
+         yerr = (convertMaggiesToFlam(wphot, phot84) - convertMaggiesToFlam(wphot,phot16))[obs['phot_mask']],
          marker='s', markersize=10, alpha=0.8, ls='', lw=3, 
          markerfacecolor='none', markeredgecolor='green', 
          markeredgewidth=3)
-ax[0].errorbar(wphot, convertMaggiesToFlam(wphot, obs['maggies']), yerr=convertMaggiesToFlam(wphot, obs['maggies_unc']), 
+ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']], yerr=(convertMaggiesToFlam(wphot, obs['maggies_unc']))[obs['phot_mask']], 
          label='Observed photometry', ecolor='red', 
          marker='o', markersize=10, ls='', lw=3, alpha=0.8, 
          markerfacecolor='none', markeredgecolor='black', 
@@ -322,7 +322,8 @@ ax[0].tick_params(axis='both', which='major', labelsize=10)
 print('Made spectrum plot')
 
 ######################## SFH for FLEXIBLE continuity model ########################
-from um_prospector_param_file import updated_logsfr_ratios_to_masses_psb, updated_psb_logsfr_ratios_to_agebins
+#from um_prospector_param_file import updated_logsfr_ratios_to_masses_psb, updated_psb_logsfr_ratios_to_agebins
+import um_prospector_param_file
 
 # obtain sfh from universemachine
 um_sfh = gal['sfh'][:,1]
@@ -500,7 +501,6 @@ print('Finished SFH')
 #ax[1].plot(age_interp, sfrPercent[:,2], color='black', lw=1.5)
 #ax[1].set_ylabel('SFR [Msun/yr]')
 #ax[1].set_xlabel('years before observation [Gyr]')
-
 
 # add secondary axis for redshift
 #x_formatter = [1, 2, 3, 5, 7, 10, 15]
