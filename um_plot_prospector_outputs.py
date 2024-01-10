@@ -159,8 +159,8 @@ print("{}".format(outroot))
 sps = get_sps(res)
 
 #obs = (np.load('obs-z3/umobs_'+str(obs_mcmc['objid'])+'.npz', allow_pickle=True))['obs']
-gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+gal = (np.load('obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+spsdict = (np.load('obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
 
 print('Object ID: ' + str(obs['objid']))
