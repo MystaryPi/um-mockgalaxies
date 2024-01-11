@@ -14,8 +14,10 @@ from scipy.stats import truncnorm
 import os
 from prospect.likelihood import NoiseModel
 from prospect.likelihood.kernels import Uncorrelated
+from prospect.utils.obsutils import fix_obs
 import glob
 from astropy.cosmology import z_at_value
+import sedpy
 
 # set up cosmology
 cosmo = FlatLambdaCDM(H0=70, Om0=.3)
@@ -45,6 +47,7 @@ run_params = {'verbose':True, #this controls how much output to screen
               'initial_disp': 0.1,            # default dispersion in parameters for walker ball
               # Obs data parameters
               'objid':0,
+              'mediumBands': True,
               #'catfile': '/Users/michpark/JWST_Programs/UNCOVER_DR1_LW_D032_catalog.fits',
               'phottable':None,                                     
               'logify_spectrum':False,
@@ -54,13 +57,9 @@ run_params = {'verbose':True, #this controls how much output to screen
               'add_dust': True,
               # SPS parameters
               'zcontinuous': 1,
-              'zred': 3.0015846275124947, #should be a free parameter
-              # --- SFH parameters ---
-              # 'agelims': [0.0,7.4772,8.0,8.5,9.0,9.5,9.8,10.0],
-              # 'tquench': .2,
-              # 'tflex': 2,
-              # 'nflex': 5,
-              # 'nfixed': 3,
+              'zspec': None, # this leaves redshift a free parameter
+              'tflex_frac': 0.6,
+              'tlast_max_frac': 0.3,
               # --- dynesty parameters ---
               'dynesty':True,
               'nested_bound': 'multi',        # bounding method
@@ -87,7 +86,7 @@ run_params = {'verbose':True, #this controls how much output to screen
 # --------------
 # OBS
 # --------------
-def load_obs(objid, **kwargs):
+def load_obs(objid, mediumBands, **kwargs):
     """Load an UniverseMachine spectrum.
              
     Load photometry from an ascii file.  Assumes the following columns:
@@ -121,8 +120,18 @@ def load_obs(objid, **kwargs):
         obs = d['obs'].item()
         gal = d['gal']
         sps = d['params'].item()  
+    if(mediumBands == True):
+        obs['phot_mask'] = [True]*len(obs['maggies']) #always true because our fake data is all good
+    else:
+        # No medium bands - exclude the bands that we don't need
+        obs['phot_mask'] = [True, True, True, True, True, True, True, False, False, False, 
+        False, False, False, False, False, False, False, False, False, False, False]
     
     obs['objid'] = objid
+    obs = fix_obs(obs)
+    assert 'phot_mask' in obs.keys()
+    
+    obs['filters'] = sedpy.observate.load_filters(obs['filternames'])
      
     return obs
     
@@ -132,6 +141,110 @@ def load_obs(objid, **kwargs):
 # ------------------    
 def to_dust1(dust1_fraction=None, dust1=None, dust2=None, **extras):
     return dust1_fraction*dust2     
+    
+def to_tlast(tlast_fraction=None, zred=None, **extras):
+    # convert from tlast_fraction to age of universe
+    tuniv = cosmo.age(zred[0]).value
+    tlast = tlast_fraction * tuniv
+    # make sure we don't go below 10 Myr absolute age
+    return np.clip(tlast, a_min=0.01, a_max=1)
+        
+def z_to_tflex(zred=None,tflex_frac=None,**extras):
+    return tflex_frac * cosmo.age(zred[0]).value  
+    
+# -------------
+# updated SFH
+# -------------
+def updated_logsfr_ratios_to_masses_psb(logmass=None, logsfr_ratios=None,
+                                 logsfr_ratio_young=None, logsfr_ratio_old=None,
+                                 tlast_fraction=None, tflex_frac=None, nflex=None, nfixed=None,
+                                 agebins=None, zred=None, **extras):
+    """This is a modified version of logsfr_ratios_to_masses_flex above. This now
+    assumes that there are nfixed fixed-edge timebins at the beginning of
+    the universe, followed by nflex flexible timebins that each form an equal
+    stellar mass. The final bin has variable width and variable SFR; the width
+    of the bin is set by the parameter tlast.
+
+    The major difference between this and the transform above is that
+    logsfr_ratio_old is a vector.
+    """
+
+    # clip for numerical stability
+    nflex = nflex[0]; nfixed = nfixed[0]
+    logsfr_ratio_young = np.clip(logsfr_ratio_young[0], -7, 7)
+    logsfr_ratio_old = np.clip(logsfr_ratio_old, -7, 7)
+    syoung, sold = 10**logsfr_ratio_young, 10**logsfr_ratio_old
+    sratios = 10.**np.clip(logsfr_ratios, -7, 7) # numerical issues...
+
+    # get agebins
+    abins = updated_psb_logsfr_ratios_to_agebins(logsfr_ratios=logsfr_ratios,
+            agebins=agebins, tlast_fraction=tlast_fraction, tflex_frac=tflex_frac, nflex=nflex, nfixed=nfixed, zred=zred, **extras)
+
+    # get find mass in each bin
+    dtyoung, dt1 = (10**abins[:2, 1] - 10**abins[:2, 0])
+    dtold = 10**abins[-nfixed-1:, 1] - 10**abins[-nfixed-1:, 0]
+    old_factor = np.zeros(nfixed)
+    for i in range(nfixed):
+        old_factor[i] = (1. / np.prod(sold[:i+1]) * np.prod(dtold[1:i+2]) / np.prod(dtold[:i+1]))
+    mbin = 10**logmass / (syoung*dtyoung/dt1 + np.sum(old_factor) + nflex)
+    myoung = syoung * mbin * dtyoung / dt1
+    mold = mbin * old_factor
+    n_masses = np.full(nflex, mbin)
+
+    return np.array(myoung.tolist() + n_masses.tolist() + mold.tolist())
+
+
+def updated_psb_logsfr_ratios_to_agebins(logsfr_ratios=None, agebins=None,
+                                 tlast_fraction=None, tflex_frac=None, nflex=None, nfixed=None, zred=None, **extras):
+    """This is a modified version of logsfr_ratios_to_agebins above. This now
+    assumes that there are nfixed fixed-edge timebins at the beginning of
+    the universe, followed by nflex flexible timebins that each form an equal
+    stellar mass. The final bin has variable width and variable SFR; the width
+    of the bin is set by the parameter tlast.
+
+    For the flexible bins, we again use the equation:
+        delta(t1) = tuniv  / (1 + SUM(n=1 to n=nbins-1) PROD(j=1 to j=n) Sn)
+        where Sn = SFR(n) / SFR(n+1) and delta(t1) is width of youngest bin
+
+    """
+    
+    # get age of universe at this z
+    tuniv = cosmo.age(zred[0]).value
+    
+    # dumb way to de-arrayify values...
+    tlast = tlast_fraction[0]*tuniv; tflex = tflex_frac[0]*tuniv
+    try: nflex = nflex[0]
+    except IndexError: pass
+    try: nfixed = nfixed[0]
+    except IndexError: pass
+
+    # numerical stability
+    logsfr_ratios = np.clip(logsfr_ratios, -7, 7)
+
+    # flexible time is t_flex - youngest bin (= tlast, which we fit for)
+    # this is also equal to tuniv - upper_time - lower_time
+    tf = (tflex - tlast) * 1e9
+
+    # figure out other bin sizes
+    n_ratio = logsfr_ratios.shape[0]
+    sfr_ratios = 10**logsfr_ratios
+    dt1 = tf / (1 + np.sum([np.prod(sfr_ratios[:(i+1)]) for i in range(n_ratio)]))
+
+    # translate into agelims vector (time bin edges)
+    agelims = [1, (tlast*1e9), dt1+(tlast*1e9)]
+    for i in range(n_ratio):
+        agelims += [dt1*np.prod(sfr_ratios[:(i+1)]) + agelims[-1]]
+        
+    # here's our update -- previous code just copied over the fixed agebins
+    # from the previous draw... but that doesn't work now if our z is changing    
+    # agelims += list(10**agebins[-nfixed:,1])
+    
+    # instead, we need to re-calculate this based on our new zphot
+    agelims += np.linspace(tflex*1e9, tuniv*1e9, nfixed+1)[1:].tolist()
+    
+    abins = np.log10([agelims[:-1], agelims[1:]]).T
+
+    return abins
     
     
 # --------------
@@ -166,10 +279,11 @@ def build_noise(**extras):
 # SED Model
 # ------------------    
 
-def load_model(zred=None, zphot=None, fixed_metallicity=None, add_dust=False,
+def load_model(zspec=None, zphot=None, fixed_metallicity=None, add_dust=False,
                add_neb=True, luminosity_distance=None, agelims=None, objname=None,
                catfile=None, binmax=None, tquench=None, 
-               tflex=None, nflex=None, nfixed=None, **extras):
+               tflex=None, nflex=None, nfixed=None, tflex_frac=None, tlast_max_frac=None, **extras):          
+               
     """Construct a model.  This method defines a number of parameter
     specification dictionaries and uses them to initialize a
     `models.sedmodel.SedModel` object.
@@ -191,25 +305,32 @@ def load_model(zred=None, zphot=None, fixed_metallicity=None, add_dust=False,
         luminosity_distance to 1e-5 (10pc))
     """         
                
+    # make sure we didn't put nonsense values for fractions of SFH in fixed/flex bins...
+    assert (tflex_frac + tlast_max_frac) < 1.0, "tflex_frac + tlast_max_frac must be less than 1"        
+               
     # --- Use the PSB SFH template. ---
     model_params = TemplateLibrary["continuity_psb_sfh"]
-
-    # set the redshift
-    # if we give a spec-z, we should fix it there
-    # if we give a photo-z, we should let it vary but initialize it at the photo-z
-    if zred is not None:
-        model_params['zred'] = {'N':1, 'isfree':False, 'init': zred, 'prior':priors.TopHat(mini=zred-0.1, maxi=zred+0.1)}
-    elif zphot is not None:
-        model_params['zred'] = {'N':1, 'isfree':True, 'init': zphot, 'prior':priors.TopHat(mini=0, maxi=10)}
-    else: #if zred is none + zphot is none
-        model_params['zred'] = {'N':1, 'isfree':True, 'init': 2, 'prior':priors.TopHat(mini=0, maxi=5)} #set zred to value 
-        #adjusted to 0 to 5 (where most quenched galaxies are)
     
-    # set tlast 
-    # maximum of tlast should be 0.3 * the age of the universe at the redshift
-    # tflex is set to 0.6 * age of the universe at the redshift
-    model_params['tlast']['prior'] = priors.TopHat(mini=0.01,maxi=0.3*cosmo.age(model_params['zred']['init']).value)
-    model_params['tflex']['init'] = 0.6*cosmo.age(model_params['zred']['init']).value
+    # update SFH transforms to use slightly-modified functions above
+    model_params['agebins']['depends_on'] = updated_psb_logsfr_ratios_to_agebins
+    model_params['mass']['depends_on'] = updated_logsfr_ratios_to_masses_psb
+    
+    # set the redshift
+    if zspec is not None:
+        model_params['zred'] = {'N':1, 'isfree':False, 'init': zred, 'prior':priors.TopHat(mini=zspec-0.1, maxi=zspec+0.1)}
+    elif zphot is not None:
+        model_params['zred'] = {'N':1, 'isfree':True, 'init': zphot, 'prior':priors.TopHat(mini=0, maxi=6)}
+    else: #if zspec is none + zphot is none
+        model_params['zred'] = {'N':1, 'isfree':True, 'init': 2, 'prior':priors.TopHat(mini=0, maxi=6)} #set zred to value
+    
+    # set tflex to a fraction of age of universe at given z
+    model_params['tflex_frac'] = {'N':1, 'isfree':False, 'init':tflex_frac}
+    model_params['tflex'] = {'N':1, 'isfree':False, 'depends_on':z_to_tflex, 'init':tflex_frac * model_params['zred']['init']}   
+    
+    # tlast -- we want to set this to vary between ~10 Myr and X% of age of universe
+    # easiest to do this with a transform -- sample the max tlast fraction, then transform to real values
+    model_params['tlast_fraction'] = {'N':1, 'isfree':True, 'prior':priors.TopHat(mini=0.01, maxi=tlast_max_frac), 'init':0.1}
+    model_params['tlast'] = {'N':1, 'isfree':False, 'depends_on':to_tlast, 'init':0.1*cosmo.age(model_params['zred']['init']).value}
 
     # set IMF to chabrier (default is kroupa)
     model_params['imf_type']['init'] = 1
