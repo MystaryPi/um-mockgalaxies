@@ -133,7 +133,7 @@ nflex=5
 nfixed=3
 
 # assign directory #DONT DO IN SHERLOCK - NO SEABORN
-directory = '/Users/michpark/JWST_Programs/mockgalaxies/nov_z3/' #nov_z3 vs. tlast_z3fixed
+directory = '/Users/michpark/JWST_Programs/mockgalaxies/freez3mb/' #nov_z3 vs. tlast_z3fixed
 plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/big_plots/'
 cosmo = FlatLambdaCDM(H0=70, Om0=.3)
 
@@ -155,6 +155,8 @@ dust_index_array = []
 zred_array = []
 
 fig, ax = plt.subplots(4,2,figsize=(9,9))
+from um_prospector_param_file import updated_logsfr_ratios_to_masses_psb, updated_psb_logsfr_ratios_to_agebins
+
 
 for mcmcfile in os.listdir(directory):
         #SPECIFICALLY 121104703 - new_mcmc_29_121104703_1688582046_mcmc.h5 (nan example)
@@ -163,8 +165,8 @@ for mcmcfile in os.listdir(directory):
         #print('Making plots for '+str(mcmcfile))
 
         res, obs, mod = results_from("{}".format(mcmcfile), dangerous=True)
-        gal = (np.load('obs/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-        spsdict = (np.load('obs/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+        gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+        spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
         sps = get_sps(res)
 
@@ -187,27 +189,33 @@ for mcmcfile in os.listdir(directory):
             age_interp = np.concatenate((np.arange(0,2,.001),np.arange(2,tmax,.01),[tmax])) #np.append(np.arange(0, tuniv, 0.01), tuniv)
         else:
             age_interp = np.arange(0,tmax+.005, .001)    
-        age_interp[0] = 1e-9      
+        age_interp[0] = 1e-9    
+        
+        nflex = mod.params['nflex']
+        nfixed = mod.params['nfixed']
+        tflex_frac = mod.params['tflex_frac']  
 
         # actual sfh percentiles
         allsfrs = np.zeros((flatchain.shape[0], len(mod.params['agebins'])))
         allagebins = np.zeros((flatchain.shape[0], len(mod.params['agebins']), 2))
         for iteration in range(flatchain.shape[0]):
+            zred = flatchain[iteration, mod.theta_index['zred']]
+            tuniv_thisdraw = cosmo.age(zred).value
             logr = np.clip(flatchain[iteration, mod.theta_index["logsfr_ratios"]], -7,7)
-            tlast = flatchain[iteration, mod.theta_index['tlast']]
+            tlast_fraction = flatchain[iteration, mod.theta_index['tlast_fraction']]
             logr_young = np.clip(flatchain[iteration, mod.theta_index['logsfr_ratio_young']], -7, 7)
             logr_old = np.clip(flatchain[iteration, mod.theta_index['logsfr_ratio_old']], -7, 7)
             try:
                 logmass = flatchain[iteration, mod.theta_index['massmet']][0] # not what we are using
             except:
                 logmass = flatchain[iteration, mod.theta_index["logmass"]]      
-            agebins = psb_logsfr_ratios_to_agebins(logsfr_ratios=logr, agebins=mod.params['agebins'], 
-                tlast=tlast, tflex=mod.params['tflex'], nflex=mod.params['nflex'], nfixed=mod.params['nfixed'])
+            agebins = updated_psb_logsfr_ratios_to_agebins(logsfr_ratios=logr, agebins=mod.params['agebins'], 
+                tlast_fraction=tlast_fraction, tflex_frac=tflex_frac, nflex=nflex, nfixed=nfixed, zred=zred)
             allagebins[iteration, :] = agebins
             dt = 10**agebins[:, 1] - 10**agebins[:, 0]
-            masses = logsfr_ratios_to_masses_psb(logsfr_ratios=logr, logmass=logmass, agebins=agebins,
+            masses = updated_logsfr_ratios_to_masses_psb(logsfr_ratios=logr, logmass=logmass, agebins=agebins,
                 logsfr_ratio_young=logr_young, logsfr_ratio_old=logr_old,
-                tlast=tlast, tflex=mod.params['tflex'], nflex=mod.params['nflex'], nfixed=mod.params['nfixed'])
+                tlast_fraction=tlast_fraction, tflex_frac=tflex_frac, nflex=nflex, nfixed=nfixed, zred=zred)
             allsfrs[iteration,:] = (masses  / dt)
 
         # calculate interpolated SFR and cumulative mass  
@@ -283,7 +291,7 @@ for mcmcfile in os.listdir(directory):
 
         dust2_array.append(percentiles['dust2'][1])
         dust_index_array.append(percentiles['dust_index'][1])
-        #zred_array.append(zred[0])
+        zred_array.append(percentiles['zred'][1]) 
 
         # QUENCH TIME 
         input_mask = [i for i in enumerate(um_sfh) if i == 0]
@@ -321,21 +329,15 @@ for mcmcfile in os.listdir(directory):
         if len(x_i) != 0 and len(x_o) != 0:
             ax[3,0].plot(x_i[0], x_o[0], marker='.', markersize=10, ls='', lw=2, 
             markerfacecolor='c',markeredgecolor='c',markeredgewidth=3)
-
-            
-
-
-
          
 # PLOT THE VIOLIN PLOTS (zred, dust2, dust_index - INPUT is same!!!)
 #ZRED - hist
-'''
-ax[1,1].hist(zred_array, bins=20, range=[1.9,3.1], color='lightcoral')
+ax[1,1].hist(zred_array, bins='auto', range=[2.7,3.3], color='lightcoral')
 ax[1,1].set_xlabel("Recovered redshift")
 ax[1,1].axvline(spsdict['zred'], ls='--',color='black', lw=2, label='Input redshift: {0:.3f}'.format(spsdict['zred']))
-ax[1,1].set_xlim(1.9,3.1)
-ax[1,1].set_ylim(0,40)
-'''
+ax[1,1].set_xlim(2.7,3.3)
+
+
 
 # DUST2 - violin
 ax[2,0].hist(dust2_array, bins=20, color='silver')
@@ -390,7 +392,7 @@ plt.show()
 
 # save plot 
 counter=0
-filename = 'bigplot_tlast_z3_{}.pdf' #defines filename for all objects
+filename = 'bigplot_freez3mb_{}.pdf' #defines filename for all objects
 while os.path.isfile(plotdir+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made
@@ -399,3 +401,12 @@ fig.savefig(plotdir+filename, bbox_inches='tight')
 print('saved big plot to '+plotdir+filename) 
 
 #plt.close(fig)
+
+
+        
+
+        
+
+
+
+             
