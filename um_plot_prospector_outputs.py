@@ -427,38 +427,11 @@ print(percentiles) # prints percentiles
 massFrac = 1 - massPercent[lbt_interp==1, 1:].flatten()[::-1]  
 
 ############## MAXIMUM LIKELIHOOD ESTIMATE ##################
-'''
-# Collect values for MLE, straight from UMachine...
-sfr_obs = gal['sfh'][:,1]
-sfr_obs_err = np.ones_like(sfr_obs) * 1e-3 * max(sfr_obs) 
-t_obs = cosmo.age(gal['sfh'][:,0]).value
-t_obs = tuniv - t_obs # convert t_obs (Gyr) to lookback time (log10(yr))
+# This is fully incorporated into direct_fit.py
+from direct_fit import fit_flexpsb
 
-# remove any points that occur after obs redshift of galaxy
-badidx = np.where(t_obs < 0.)[0]
-t_obs = np.delete(t_obs, badidx)
-sfr_obs = np.delete(sfr_obs, badidx)
-sfr_obs_err = np.delete(sfr_obs_err, badidx)
-t_obs = t_obs[::-1]
-sfr_obs = sfr_obs[::-1]
-sfr_obs_err = sfr_obs_err[::-1]
-
-mtot_init = trap(t_obs*1e9, sfr_obs) 
-
-nll = lambda *args: -log_likelihood(*args)
-tquench_init = 0.2
-logsfr_ratio_young_init, logsfr_ratios_init, logsfr_ratio_old_init = priors(tquench=tquench_init)
-logr0_init, logr1_init, logr2_init, logr3_init = logsfr_ratios_init
-logrold0_init, logrold1_init, logrold2_init = logsfr_ratio_old_init
-
-initial = np.array([logr0_init, logr1_init, logr2_init, logr3_init, tquench_init, logsfr_ratio_young_init, logrold0_init, logrold1_init, logrold2_init, mtot_init])
-
-soln = minimize(nll, initial, args=(t_obs, sfr_obs, sfr_obs_err))
-sfr_ml, agebins_ml = psb(t_obs, soln.x[0:4], soln.x[4], soln.x[5], soln.x[6:9], mtot=soln.x[9]) 
-
-t_plot = tuniv - t_obs
-t_plot = t_plot[::-1]
-'''
+t_obs_ml, sfr_ml = fit_flexpsb(obs['objid'], outroot, verbose=True, massfree=True, nsteps=5000, discard=2000)
+ax[1].plot(t_obs_ml, sfr_ml, '--', color='green', lw=1.5, label='Direct fit SFH')
 
 ###### SFH ADJUSTED PLOTS ##############
 # One-dimensional linear interpolation.

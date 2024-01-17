@@ -253,7 +253,30 @@ for mcmcfile in os.listdir(directory):
         #print("output integral mass: " + str(np.log10(trap(cosmo.age(gal['sfh'][:,0]).value*1e9, sfhadjusted))))
         #outputIntegralMass = np.log10(trap(cosmo.age(gal['sfh'][:,0]).value*1e9, sfhadjusted))
 
-        ##### AREA UNDER THE CURVE COMPARISON #####
+        ##### SFR over meaningful timescale #####
+        '''
+        - 100 Myr - timescale that direct Halpha measurements are sensitive to
+        - Built function to take in SFH and an averaging timescale (default 100 Myr) 
+        - adds up the total mass formed in that timescale / timescale = average SFR
+
+        timescale: most recent timescale (in Gyr)
+        lbt_interp: lookback time of FULL range
+        sfh: takes in SFH of FULL range
+        '''
+        def averageSFR(lbt_interp, sfh, timescale = 0.1):
+            # Obtain LBT + area under SFH over chosen range
+            timescaleLBT = [lbt_interp[i] * 1e9 for i in range(len(lbt_interp)) if lbt_interp[i] <= timescale]
+            timescaleSFH = [sfh[i] for i in range(len(sfh)) if lbt_interp[i] <= timescale]
+            timescaleMass = np.abs(trap(np.array(timescaleLBT), np.array(timescaleSFH))) # in solar masses
+
+            return timescaleMass / timescale
+        
+        inputAverageSFR = averageSFR(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, timescale=0.1)
+        outputAverageSFR = averageSFR(age_interp, sfrPercent[:,2], timescale=0.1)
+        
+        ax[3,1].plot(inputAverageSFR, outputAverageSFR, marker='.', markersize=10, ls='', lw=2, color = 'skyblue')
+        
+        '''
         # Full range vs recent bit (0.6 Gyr) vs old bit
         inputFullLBT = cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value
         outputFullLBT = age_interp
@@ -275,6 +298,7 @@ for mcmcfile in os.listdir(directory):
         ax[3,1].plot(inputFull, outputFull, marker='.', markersize=10, ls='', lw=2, color = 'black')
         ax[3,1].plot(inputRecent, outputRecent, marker='.', markersize=10, ls='', lw=2, color = 'skyblue')
         ax[3,1].plot(inputOld, outputOld, marker='.', markersize=10, ls='', lw=2, color = 'maroon')
+        '''
 
         #LOGMASS
         ax[0,0].errorbar(obs['logM'],percentiles['logmass'][1],yerr=np.vstack((percentiles['logmass'][1]-percentiles['logmass'][0],percentiles['logmass'][2]-percentiles['logmass'][1])),marker='.', markersize=10, ls='', lw=2, 
@@ -378,12 +402,11 @@ ax[3,0].set_ylabel(r'Recovered quench time [Gyr]')
 ax[3,0].set_xlabel(r'Input quench time [Gyr]')
 
 # Different mass integrals - scatter
-# Blue = recent, maroon = old, black = combined/full
 ax[3,1].axline((0, 0), slope=1., ls='--', color='black', lw=2)
-ax[3,1].set_ylabel(r'Recovered mass integral')
-ax[3,1].set_xlabel(r'Input mass integral')
-ax[3,1].set_ylim(6, 12)
-ax[3,1].set_xlim(8.5,12)
+ax[3,1].set_ylabel(r'Recovered average SFR over $100 Myr$')
+ax[3,1].set_xlabel(r'Input average SFR over $100 Myr$')
+ax[3,1].set_ylim(40, 110)
+ax[3,1].set_xlim(40,110)
 ax[3,1].set_xlim(left=5)
 ax[3,1].set_ylim(bottom=5)
 

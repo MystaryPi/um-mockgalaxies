@@ -306,7 +306,8 @@ def load_model(zspec=None, zphot=None, fixed_metallicity=None, add_dust=False,
     """         
                
     # make sure we didn't put nonsense values for fractions of SFH in fixed/flex bins...
-    assert (tflex_frac + tlast_max_frac) < 1.0, "tflex_frac + tlast_max_frac must be less than 1"        
+    assert tflex_frac < 1.0, "tflex_frac must be less than 1" 
+    assert tlast_max_frac < tflex_frac, "tlast_max_frac must be less than tflex_frac"          
                
     # --- Use the PSB SFH template. ---
     model_params = TemplateLibrary["continuity_psb_sfh"]
