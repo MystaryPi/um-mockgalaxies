@@ -159,8 +159,7 @@ from um_prospector_param_file import updated_logsfr_ratios_to_masses_psb, update
 
 
 for mcmcfile in os.listdir(directory):
-        #SPECIFICALLY 121104703 - new_mcmc_29_121104703_1688582046_mcmc.h5 (nan example)
-        #SPECIFICALLY 121072637 - new_mcmc_6_121072637_1688582046_mcmc.h5 (input sfh beyond output sfh)
+        #mcmcfile = 'freez3mb_mcmc_2_559162296_1704515203_mcmc.h5'
         mcmcfile = os.path.join(directory, mcmcfile)
         #print('Making plots for '+str(mcmcfile))
 
@@ -269,12 +268,15 @@ for mcmcfile in os.listdir(directory):
             timescaleSFH = [sfh[i] for i in range(len(sfh)) if lbt_interp[i] <= timescale]
             timescaleMass = np.abs(trap(np.array(timescaleLBT), np.array(timescaleSFH))) # in solar masses
 
-            return timescaleMass / timescale
+            return timescaleMass / (timescale*1e9)
         
         inputAverageSFR = averageSFR(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, timescale=0.1)
         outputAverageSFR = averageSFR(age_interp, sfrPercent[:,2], timescale=0.1)
+
+        print(np.log10(inputAverageSFR))
+        print(np.log10(outputAverageSFR))
         
-        ax[3,1].plot(inputAverageSFR, outputAverageSFR, marker='.', markersize=10, ls='', lw=2, color = 'skyblue')
+        ax[0,1].plot(np.log10(inputAverageSFR), np.log10(outputAverageSFR), marker='.', markersize=10, ls='', lw=2, color = 'skyblue')
         
         '''
         # Full range vs recent bit (0.6 Gyr) vs old bit
@@ -304,10 +306,6 @@ for mcmcfile in os.listdir(directory):
         ax[0,0].errorbar(obs['logM'],percentiles['logmass'][1],yerr=np.vstack((percentiles['logmass'][1]-percentiles['logmass'][0],percentiles['logmass'][2]-percentiles['logmass'][1])),marker='.', markersize=10, ls='', lw=2, 
             markerfacecolor='navy',markeredgecolor='navy',markeredgewidth=3,ecolor='navy',elinewidth=1.4) 
         
-        #SFRs - get last value of um_sfh + 0th value of sfrpercent (both most recent values)
-        ax[0,1].errorbar(um_sfh[-1], sfrPercent[:,2][0], yerr=np.vstack((sfrPercent[:,2][0] - sfrPercent[:,1][0], sfrPercent[:,3][0]-sfrPercent[:,2][0])),marker='.', markersize=10, ls='', lw=2, 
-            markerfacecolor='dodgerblue',markeredgewidth=3,markeredgecolor='dodgerblue', ecolor='dodgerblue',elinewidth=1.4) 
-        print("#### SFH: " + str(um_sfh[-1]) + ", " + str(sfrPercent[:,2][0]) + " ####")
         #LOGZSOL
         ax[1,0].errorbar(spsdict['logzsol'],percentiles['logzsol'][1],yerr=np.vstack((percentiles['logzsol'][1]-percentiles['logzsol'][0],percentiles['logzsol'][2]-percentiles['logzsol'][1])),marker='.', markersize=10, ls='', lw=2, 
             markerfacecolor='darkorange',markeredgecolor='darkorange',markeredgewidth=3,ecolor='darkorange',elinewidth=1.4) 
@@ -361,33 +359,24 @@ ax[1,1].set_xlabel("Recovered redshift")
 ax[1,1].axvline(spsdict['zred'], ls='--',color='black', lw=2, label='Input redshift: {0:.3f}'.format(spsdict['zred']))
 ax[1,1].set_xlim(2.7,3.3)
 
-
-
 # DUST2 - violin
-ax[2,0].hist(dust2_array, bins=20, color='silver')
+ax[2,0].hist(dust2_array, bins='auto', range=[0.0,1.0], color='silver')
 ax[2,0].set_xlabel("Recovered dust2")
 ax[2,0].axvline(0.2, ls='--',color='black', lw=2, label='Input dust2: 0.0')
-ax[2,0].set_xlim(-0.2,2.5)
-ax[2,0].set_ylim(0,40)
+ax[2,0].set_xlim(-0.25,1.25)
+ax[2,0].set_ylim(0,15)
 
 #DUST_INDEX - violin
-ax[2,1].hist(dust_index_array, bins=20, color='gray')
+ax[2,1].hist(dust_index_array, bins='auto', range=[-1.0,0.5], color='gray')
 ax[2,1].set_xlabel("Recovered dust_index")
 ax[2,1].axvline(0, ls='--',color='black', lw=2, label='Input dust index: 0.0')
-ax[2,1].set_xlim(-1.2,0.6)
-ax[2,1].set_ylim(0,40) 
+ax[2,1].set_xlim(-1.25,0.75)
+ax[2,1].set_ylim(0,15) 
 
 # LOGMASS - scatter
 ax[0,0].axline((10.5, 10.5), slope=1., ls='--', color='black', lw=2)
 ax[0,0].set_xlabel(r'Input $log M_{stellar}$ (log $M_{sun}$)')
 ax[0,0].set_ylabel(r'Recovered $log M_{stellar}$ (log $M_{sun}$)')
-
-# SFR - scatter - TBD
-ax[0,1].axline((0, 0), slope=1., ls='--', color='black', lw=2)
-ax[0,1].set_xlabel(r'Input SFR ($M_{sun}/yr$)')
-ax[0,1].set_ylabel(r'Recovered SFR ($M_{sun}/yr$)')
-ax[0,1].set_xscale('log')
-ax[0,1].set_yscale('log')
 
 # LOGZSOL - scatter
 ax[1,0].axline((0, 0), slope=1., ls='--', color='black', lw=2)
@@ -402,13 +391,11 @@ ax[3,0].set_ylabel(r'Recovered quench time [Gyr]')
 ax[3,0].set_xlabel(r'Input quench time [Gyr]')
 
 # Different mass integrals - scatter
-ax[3,1].axline((0, 0), slope=1., ls='--', color='black', lw=2)
-ax[3,1].set_ylabel(r'Recovered average SFR over $100 Myr$')
-ax[3,1].set_xlabel(r'Input average SFR over $100 Myr$')
-ax[3,1].set_ylim(40, 110)
-ax[3,1].set_xlim(40,110)
-ax[3,1].set_xlim(left=5)
-ax[3,1].set_ylim(bottom=5)
+ax[0,1].axline((0, 0), slope=1., ls='--', color='black', lw=2)
+ax[0,1].set_ylabel(r'Recovered $log SFR_{ave, 100 Myr}$ (log $M_{sun}$ / yr)')
+ax[0,1].set_xlabel(r'Input $log SFR_{ave, 100 Myr}$ (log $M_{sun}$ / yr)')
+ax[0,1].set_ylim((-3.5, 2.5))
+ax[0,1].set_xlim((-3.5,2.5))
 
 plt.tight_layout()
 plt.show()
