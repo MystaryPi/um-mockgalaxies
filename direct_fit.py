@@ -147,15 +147,18 @@ def fit_flexpsb(galidx, outroot, verbose=False, massfree=True, nsteps=5000, disc
 
         # This is the correct format 
         logsfr_ratio_young = np.array([logsfr_ratio_young])
-        logmass = np.array([mtot]) # already in logmass
+        logmass = np.array([mtot]) # already in logmass     
         
         agebins = updated_psb_logsfr_ratios_to_agebins(logsfr_ratios=logsfr_ratios, agebins=agebins, 
-            tlast_fraction=tlast_fraction, tflex_frac=tflex_frac, nflex=nflex, nfixed=nfixed, zred=zred) #put redshift here?
-        dt = 10**agebins[:, 1] - 10**agebins[:, 0]
-        masses = updated_logsfr_ratios_to_masses_psb(logmass=logmass, logsfr_ratios=logsfr_ratios, logsfr_ratio_young=logsfr_ratio_young,
-                                                     logsfr_ratio_old=logsfr_ratio_old, tlast_fraction=tlast_fraction, tflex_frac=tflex_frac, 
-                                                     nflex=nflex, nfixed=nfixed, agebins=agebins, zred=zred)
+            tlast_fraction=tlast_fraction, tflex_frac=tflex_frac, nflex=nflex, nfixed=nfixed, zred=zred) 
 
+        #agebins = updated_psb_logsfr_ratios_to_agebins(logsfr_ratios=logsfr_ratios, agebins=mod.params['agebins'], 
+        #    tlast_fraction=tlast_fraction, tflex_frac=tflex_frac, nflex=nflex, nfixed=nfixed, zred=zred)
+    
+        dt = 10**agebins[:, 1] - 10**agebins[:, 0]
+        masses = updated_logsfr_ratios_to_masses_psb(logsfr_ratios=logsfr_ratios, logmass=logmass, agebins=agebins, 
+            logsfr_ratio_young=logsfr_ratio_young, logsfr_ratio_old=logsfr_ratio_old, tlast_fraction=tlast_fraction, tflex_frac=tflex_frac, 
+            nflex=nflex, nfixed=nfixed, zred=zred)
         sfrs = (masses  / dt)
 
         # interpolate SFR to time array
@@ -172,7 +175,7 @@ def fit_flexpsb(galidx, outroot, verbose=False, massfree=True, nsteps=5000, disc
         # and normalize it so that the total stellar mass formed is mtot
         # mtot is in logmass, 10**mtot gives Msun units
         sfh = sfh * (10**mtot / trap(ages*1e9, sfh)) # ok, now we're in Msun/yr units
-        
+
         return sfh, agebins_ago
 
     # Fit model to observations
@@ -233,7 +236,9 @@ def fit_flexpsb(galidx, outroot, verbose=False, massfree=True, nsteps=5000, disc
     else:
         initial = np.array([logr0_init, logr1_init, logr2_init, logr3_init, tquench_init, logsfr_ratio_young_init, logrold0_init, logrold1_init, logrold2_init])
 
+    print("initial: " + str(initial))
     soln = minimize(nll, initial, args=(t_obs, sfr_obs, sfr_obs_err)) #RUNS MLE HERE!!!!
+    print("soln: " + str(soln))
 
     pos = initial + 1e-4 * np.random.randn(32, len(initial))
     nwalkers, ndim = pos.shape
