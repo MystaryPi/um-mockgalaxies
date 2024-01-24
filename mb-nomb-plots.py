@@ -23,7 +23,7 @@ from scipy.stats import chisquare
 from scipy.optimize import fsolve
 import dynesty
 import h5py
-from matplotlib import pyplot as plt, ticker as ticker
+from matplotlib import pyplot as plt, ticker as ticker; plt.interactive(True)
 from astropy.cosmology import FlatLambdaCDM, z_at_value
 import astropy.units as u
 import um_cornerplot
@@ -55,12 +55,12 @@ root = '/Users/michpark/JWST_Programs/um-mockgalaxies/'
 for files in os.walk(root + 'mb-0.65/'):
         for filename in files[2]:
             if objid in filename:
-                name_path = os.path.join(root + 'z3mb/',filename)
+                name_path = os.path.join(root + 'mb-0.65/',filename)
                 outroot_mb = name_path
-for files in os.walk(root + 'z3nomb/'):
+for files in os.walk(root + 'nomb-0.65/'):
         for filename in files[2]:
             if objid in filename:
-                name_path = os.path.join(root + 'z3nomb/',filename)
+                name_path = os.path.join(root + 'nomb-0.65/',filename)
                 outroot_nomb = name_path        
 
 print('Making plots for...')
@@ -183,6 +183,8 @@ while os.path.isfile(plotdir+'sfh/'+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made
 
+fig, ax = plt.subplots(3,1,figsize=(8,12))
+
 for outroot_index, outroot in enumerate(outroot_array):
     # outroot_index = 0 is MB, outroot_index = 1 is no MB
     # grab results (dictionary), the obs dictionary, and our corresponding models
@@ -196,54 +198,11 @@ for outroot_index, outroot in enumerate(outroot_array):
     print('Object ID: ' + str(obs['objid']))
     print('Loaded results')
 
-    # traceplot
-    '''
-    tracefig = traceplot(res, figsize=(10,5))
-    # make sure directory exists
-    if not os.path.exists(plotdir+'trace'):
-        os.mkdir(plotdir+'trace')
-    while os.path.isfile(plotdir+'trace/'+filename.format(counter)):
-        counter += 1
-    filename = filename.format(counter) #iterate until a unique file is made
-    '''
-
-    '''
-    plt.savefig(plotdir+'trace/'+filename, bbox_inches='tight')
-    print('saved tracefig to '+plotdir+'trace/'+filename)
-    plt.close()
-    '''
-
-    # corner plot
-    # maximum a posteriori (of the locations visited by the MCMC sampler)
-    # also put “truth” = input values for e.g. stellar mass, dust, metallicity, 
-    # all of the values we set when we made the mock galaxy, on that cornerplot so we can see how right/wrong the fit is 
-
-    # obtain gal from obs dictionary file
-    #load_values = np.load(res)
-    #gal = (np.load(res))['gal'] 
-
-    # Truth values
-    #['zred','logzsol','dust2','logmass','tlast','logsfr_ratio_young','logsfr_ratio_old_1','logsfr_ratio_old_2',
-    # 'logsfr_ratio_old_3','logsfr_ratios_1','logsfr_ratios_2','logsfr_ratios_3','logsfr_ratios_4','dust_index']
-
     truth_array = [gal['z'], spsdict['logzsol'], spsdict['dust2'], obs['logM'], 0, 0, 0, 0, 0, 0, 0, 0, 0, spsdict['dust_index']]
     imax = np.argmax(res['lnprobability'])
     theta_max = res['chain'][imax, :].copy()
 
     print('MAP value: {}'.format(theta_max))
-    '''
-    fig, axes = plt.subplots(len(theta_max), len(theta_max), figsize=(15,15))
-    axes = um_cornerplot.allcorner(res['chain'].T, mod.theta_labels(), axes, show_titles=True, 
-        span=[0.997]*len(mod.theta_labels()), weights=res.get("weights", None), 
-        label_kwargs={"fontsize": 8}, tick_kwargs={"labelsize": 6}, title_kwargs={'fontsize':11}, truths=truth_array)
-
-    if not os.path.exists(plotdir+'corner'):
-        os.mkdir(plotdir+'corner')    
-    fig.savefig(plotdir+'corner/'+filename, bbox_inches='tight')  
-    print('saved cornerplot to '+plotdir+filename)  
-    plt.close(fig)    
-    print('Made cornerplot')
-    '''
 
     # look at sed & residuals
     # generate model at MAP value
@@ -287,9 +246,6 @@ for outroot_index, outroot in enumerate(outroot_array):
     # Make plot of data and model
     c = 2.99792458e18
 
-    # NORMAL PLOTTING
-    fig, ax = plt.subplots(3,1,figsize=(8,12))
-
     ###### PLOTS IN FLAM ###### 
     def convertMaggiesToFlam(w, maggies):
         # converts maggies to f_lambda units
@@ -302,23 +258,23 @@ for outroot_index, outroot in enumerate(outroot_array):
     # wphot = wave_effective
     if(outroot_index == 0): # medium bands
         ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map), label='MAP Model spectrum',
-               lw=1.5, color='grey', alpha=0.7, zorder=10)    
+               lw=1.5, color='grey', alpha=0.7, zorder=0)    
         ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], label='Model photometry',
                  yerr = (convertMaggiesToFlam(wphot, phot84) - convertMaggiesToFlam(wphot,phot16))[obs['phot_mask']],
                  marker='s', markersize=10, alpha=0.8, ls='', lw=3, 
                  markerfacecolor='none', markeredgecolor='green', 
-                 markeredgewidth=3)
+                 markeredgewidth=3, zorder=5)
         ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']], yerr=(convertMaggiesToFlam(wphot, obs['maggies_unc']))[obs['phot_mask']], 
                  label='Observed photometry (Broad+MB)', ecolor='red', 
                  marker='o', markersize=10, ls='', lw=3, alpha=0.8, 
                  markerfacecolor='none', markeredgecolor='maroon', 
-                 markeredgewidth=3)  
+                 markeredgewidth=3, zorder = 5)   
     if(outroot_index == 1): # no medium bands  
         ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']], yerr=(convertMaggiesToFlam(wphot, obs['maggies_unc']))[obs['phot_mask']], 
                  label='Observed photometry (Broad only)', ecolor='red', 
                  marker='o', markersize=10, ls='', lw=3, alpha=0.8, 
                  markerfacecolor='none', markeredgecolor='navy', 
-                 markeredgewidth=3)
+                 markeredgewidth=3, zorder = 10)
      
     ax[0].set_xlim((1e3, 1e5))
     ax[0].set_xlabel('Observed Wavelength (' + r'$\AA$' + ')', fontsize=10)
@@ -425,16 +381,16 @@ for outroot_index, outroot in enumerate(outroot_array):
     massFrac = 1 - massPercent[lbt_interp==1, 1:].flatten()[::-1]  
 
     ######## SFH PLOTTING in LBT ##########
-    if(outroot_index == 0): # medium band
-        ax[1].plot(lbt_interp, sfrPercent[:,2], color='maroon', lw=1.5, label='Broad+MB SFH fit') 
-        ax[1].fill_between(lbt_interp, sfrPercent[:,1], sfrPercent[:,3], color='maroon', alpha=.4)
-    if(outroot_index == 1): # no medium band
-        ax[1].plot(lbt_interp, sfrPercent[:,2], color='navy', lw=1.5, label='Broad only SFH fit') 
-        ax[1].fill_between(lbt_interp, sfrPercent[:,1], sfrPercent[:,3], color='navy', alpha=.4)
     
     # Convert x-axis from age to LBT
-    ax[1].plot(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, label='True SFH', color='black', lw=1.7, marker="o") # INPUT SFH
-
+    ax[1].plot(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, label='True SFH' if outroot_index == 0 else "", color='black', lw=1.7, marker="o") # INPUT SFH
+    if(outroot_index == 0): # medium band
+        ax[1].plot(lbt_interp, sfrPercent[:,2], color='maroon', lw=1.5, label='Broad+MB SFH fit') 
+        ax[1].fill_between(lbt_interp, sfrPercent[:,1], sfrPercent[:,3], color='maroon', alpha=.3)
+    if(outroot_index == 1): # no medium band
+        ax[1].plot(lbt_interp, sfrPercent[:,2], color='navy', lw=1.5, label='Broad only SFH fit') 
+        ax[1].fill_between(lbt_interp, sfrPercent[:,1], sfrPercent[:,3], color='navy', alpha=.3)
+    
     #label='Input SFH (z = {0:.3f})'.format(spsdict['zred'])
     #label='Output SFH (z = {0:.3f})'.format(mod.params['zred'][0])
     #ax[1].plot(t_plot, sfr_ml[::-1], 'g--', lw=2, label='Maximum Likelihood SFH') # MLE SFH
@@ -478,8 +434,10 @@ for outroot_index, outroot in enumerate(outroot_array):
 
     # Plot derivative for input + output SFH, + quenching threshold from Wren's paper
     # Plot vertical lines for the quench time on the SFH plot
+    ax[2].axhline(-500, linestyle='--', color='black', label='-500 ' + r'$M_{\odot} yr^{-2}$' + ' quenching threshold' if outroot_index == 0 else "") # Quench threshold
+    
     if len(x_i) != 0:
-        ax[2].plot(x_d_input, y_d_input, '-o', color='black', lw=1.5, label='True SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_i[0])))[2:-2] + ' Gyr)')
+        ax[2].plot(x_d_input, y_d_input, '-o', color='black', lw=1.5, label='True SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_i[0])))[2:-2] + ' Gyr)' if outroot_index == 0 else "")
         ax[1].axvline(x_i[0], linestyle='--', lw=1, color='black')
         ax[2].axvline(x_i[0], linestyle='--', lw=1, color='black')
     else:
@@ -500,7 +458,7 @@ for outroot_index, outroot in enumerate(outroot_array):
         else: 
             ax[2].plot(x_d_output, y_d_output, '-o', color='navy', lw=1.5, label='Broad only SFH time derivative (does not pass quenching threshold)')
     
-    ax[2].axhline(-500, linestyle='--', color='black', label='-500 ' + r'$M_{\odot} yr^{-2}$' + ' quenching threshold') # Quench threshold
+    print("For loop completed")
 
 ax[1].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
 ax[1].set_yscale('log')
