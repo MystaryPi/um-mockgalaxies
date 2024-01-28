@@ -197,6 +197,25 @@ for outroot_index, outroot in enumerate(outroot_array):
 
     print('Object ID: ' + str(obs['objid']))
     print('Loaded results')
+    
+    ##############################################################################  
+    # corner plot
+    truth_array = [gal['z'], spsdict['logzsol'], spsdict['dust2'], obs['logM'], 0, 0, 0, 0, 0, 0, 0, 0, 0, spsdict['dust_index']]
+    imax = np.argmax(res['lnprobability'])
+    theta_max = res['chain'][imax, :].copy()
+
+    print('MAP value: {}'.format(theta_max))
+    fig, axes = plt.subplots(len(theta_max), len(theta_max), figsize=(15,15))
+    axes = um_cornerplot.allcorner(res['chain'].T, mod.theta_labels(), axes, show_titles=True, 
+        span=[0.997]*len(mod.theta_labels()), weights=res.get("weights", None), 
+        label_kwargs={"fontsize": 8}, tick_kwargs={"labelsize": 6}, title_kwargs={'fontsize':11}, truths=truth_array)
+
+    if not os.path.exists(plotdir+'corner'):
+        os.mkdir(plotdir+'corner')    
+    fig.savefig(plotdir+'corner/'+filename, bbox_inches='tight')  
+    print('saved cornerplot to '+plotdir+filename)  
+    plt.close(fig)    
+    print('Made cornerplot')
 
     truth_array = [gal['z'], spsdict['logzsol'], spsdict['dust2'], obs['logM'], 0, 0, 0, 0, 0, 0, 0, 0, 0, spsdict['dust_index']]
     imax = np.argmax(res['lnprobability'])
@@ -256,33 +275,42 @@ for outroot_index, outroot in enumerate(outroot_array):
         return flux_flambda
 
     # wphot = wave_effective
+    
     if(outroot_index == 0): # medium bands
-        ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map), label='MAP Model spectrum',
-               lw=1.5, color='grey', alpha=0.7, zorder=0)    
-        ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], label='Model photometry',
-                 yerr = (convertMaggiesToFlam(wphot, phot84) - convertMaggiesToFlam(wphot,phot16))[obs['phot_mask']],
-                 marker='s', markersize=10, alpha=0.8, ls='', lw=3, 
-                 markerfacecolor='none', markeredgecolor='green', 
-                 markeredgewidth=3, zorder=5)
+        ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map), label='MAP Model spectrum (Broad+MB)',
+               lw=1.5, color='maroon', alpha=0.7, zorder=0)    
+        #ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], label='Model photometry',
+        #         yerr = (convertMaggiesToFlam(wphot, phot84) - convertMaggiesToFlam(wphot,phot16))[obs['phot_mask']],
+        #         marker='s', markersize=10, alpha=0.8, ls='', lw=3, 
+        #         markerfacecolor='none', markeredgecolor='maroon', 
+        #         markeredgewidth=3, zorder=5)
         ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']], yerr=(convertMaggiesToFlam(wphot, obs['maggies_unc']))[obs['phot_mask']], 
                  label='Observed photometry (Broad+MB)', ecolor='red', 
                  marker='o', markersize=10, ls='', lw=3, alpha=0.8, 
                  markerfacecolor='none', markeredgecolor='maroon', 
                  markeredgewidth=3, zorder = 5)   
+        norm_wl = ((wspec>6300) & (wspec<6500))
+        norm = np.nanmax(convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']])
     if(outroot_index == 1): # no medium bands  
+        ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map), label='MAP Model spectrum (Broad only)',
+               lw=1.5, color='navy', alpha=0.7, zorder=0)    
         ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']], yerr=(convertMaggiesToFlam(wphot, obs['maggies_unc']))[obs['phot_mask']], 
-                 label='Observed photometry (Broad only)', ecolor='red', 
+                 label='Observed photometry (Broad only)', ecolor='blue', 
                  marker='o', markersize=10, ls='', lw=3, alpha=0.8, 
                  markerfacecolor='none', markeredgecolor='navy', 
                  markeredgewidth=3, zorder = 10)
-     
+    
+    # reincorporate scaling
+    ax[0].set_ylim((-0.2*norm, norm*2)) #top=1.5e-19 roughly
     ax[0].set_xlim((1e3, 1e5))
     ax[0].set_xlabel('Observed Wavelength (' + r'$\AA$' + ')', fontsize=10)
     ax[0].set_ylabel(r"F$_\lambda$ in ergs/s/cm$^2$/AA", fontsize=10) # in flam units
     ax[0].set_xscale('log')
+
     ax[0].legend(loc='best', fontsize=9)
     ax[0].set_title(str(int(obs['objid'])))
     ax[0].tick_params(axis='both', which='major', labelsize=10)
+    
     print('Made spectrum plot')
 
     ######################## SFH for FLEXIBLE continuity model ########################
@@ -311,12 +339,14 @@ for outroot_index, outroot in enumerate(outroot_array):
     nflex = mod.params['nflex']
     nfixed = mod.params['nfixed']
     tflex_frac = mod.params['tflex_frac']
+    zred_thisdraw = np.array([])
     
     # actual sfh percentiles
     allsfrs = np.zeros((flatchain.shape[0], len(mod.params['agebins'])))
     allagebins = np.zeros((flatchain.shape[0], len(mod.params['agebins']), 2))
     for iteration in range(flatchain.shape[0]):
         zred = flatchain[iteration, mod.theta_index['zred']]
+        zred_thisdraw = np.append(zred_thisdraw, zred) # collect zred values for each draw
         tuniv_thisdraw = cosmo.age(zred).value
         logr = np.clip(flatchain[iteration, mod.theta_index["logsfr_ratios"]], -7,7)
         tlast_fraction = flatchain[iteration, mod.theta_index['tlast_fraction']]
@@ -334,7 +364,19 @@ for outroot_index, outroot in enumerate(outroot_array):
             logsfr_ratio_young=logr_young, logsfr_ratio_old=logr_old,
             tlast_fraction=tlast_fraction, tflex_frac=tflex_frac, nflex=nflex, nfixed=nfixed, zred=zred)
         allsfrs[iteration,:] = (masses  / dt)
-
+        
+    ####### OBTAIN ZRED INSET PLOT ####### 
+    #create the inset axes for the zred - IN PROGRESS
+    '''
+    import seaborn as sns  
+    inset = fig.add_axes([0.4, 1.0, 0.15, 0.15])
+    zred_weighted = np.array([quantile(zred_thisdraw, [16,50,84], weights=res.get('weights', None))])
+    if(outroot_index == 1): #medium bands
+        inset = sns.kdeplot(np.array(zred_weighted), bw=0.5, color="maroon", label="$z_{phot}$")
+    if(outroot_index == 2): #medium bands
+        inset = sns.kdeplot(np.array(zred_weighted), bw=0.5, color="navy", label="$z_{phot}$")
+    '''
+     
     # calculate interpolated SFR and cumulative mass  
     # with each likelihood draw you can convert the agebins from units of lookback time to units of age 
     # using the redshift at that likelihood draw, and put it on your fixed grid of ages
