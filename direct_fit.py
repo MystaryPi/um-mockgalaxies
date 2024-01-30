@@ -330,5 +330,7 @@ def fit_flexpsb(galidx, outroot, verbose=False, massfree=True, nsteps=5000, disc
         import corner
         fig = corner.corner(flat_samples)
     '''
-
-    return t_obs, sfr_mc, agebins_mc
+    print("t_obs: " + str(t_obs))
+    print("sfr_mc: " + str(sfr_mc))
+    print("agebins_mc:" + str(agebins_mc))
+    return t_obs, sfr_mc
