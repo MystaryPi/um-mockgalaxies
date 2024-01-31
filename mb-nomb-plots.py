@@ -22,6 +22,7 @@ from scipy.optimize import minimize
 from scipy.stats import chisquare
 from scipy.optimize import fsolve
 import dynesty
+from dynesty import utils
 import h5py
 from matplotlib import pyplot as plt, ticker as ticker; plt.interactive(True)
 from astropy.cosmology import FlatLambdaCDM, z_at_value
@@ -184,6 +185,9 @@ while os.path.isfile(plotdir+'sfh/'+filename.format(counter)):
 filename = filename.format(counter) #iterate until a unique file is made
 
 fig, ax = plt.subplots(3,1,figsize=(8,12))
+#create the inset axes for the zred 
+#inset_ax = fig.add_axes([0.16, 0.75, 0.2, 0.12]) # without tightlayout
+inset_ax = fig.add_axes([0.14, 0.83, 0.2, 0.12])
 
 for outroot_index, outroot in enumerate(outroot_array):
     # outroot_index = 0 is MB, outroot_index = 1 is no MB
@@ -203,7 +207,7 @@ for outroot_index, outroot in enumerate(outroot_array):
     truth_array = [gal['z'], spsdict['logzsol'], spsdict['dust2'], obs['logM'], 0, 0, 0, 0, 0, 0, 0, 0, 0, spsdict['dust_index']]
     imax = np.argmax(res['lnprobability'])
     theta_max = res['chain'][imax, :].copy()
-
+    '''
     print('MAP value: {}'.format(theta_max))
     fig, axes = plt.subplots(len(theta_max), len(theta_max), figsize=(15,15))
     axes = um_cornerplot.allcorner(res['chain'].T, mod.theta_labels(), axes, show_titles=True, 
@@ -216,12 +220,7 @@ for outroot_index, outroot in enumerate(outroot_array):
     print('saved cornerplot to '+plotdir+filename)  
     plt.close(fig)    
     print('Made cornerplot')
-
-    truth_array = [gal['z'], spsdict['logzsol'], spsdict['dust2'], obs['logM'], 0, 0, 0, 0, 0, 0, 0, 0, 0, spsdict['dust_index']]
-    imax = np.argmax(res['lnprobability'])
-    theta_max = res['chain'][imax, :].copy()
-
-    print('MAP value: {}'.format(theta_max))
+    '''
 
     # look at sed & residuals
     # generate model at MAP value
@@ -279,11 +278,11 @@ for outroot_index, outroot in enumerate(outroot_array):
     if(outroot_index == 0): # medium bands
         ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map), label='MAP Model spectrum (Broad+MB)',
                lw=1.5, color='maroon', alpha=0.7, zorder=0)    
-        #ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], label='Model photometry',
-        #         yerr = (convertMaggiesToFlam(wphot, phot84) - convertMaggiesToFlam(wphot,phot16))[obs['phot_mask']],
-        #         marker='s', markersize=10, alpha=0.8, ls='', lw=3, 
-        #         markerfacecolor='none', markeredgecolor='maroon', 
-        #         markeredgewidth=3, zorder=5)
+        ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], label='Model photometry (Broad+MB)',
+                 yerr = (convertMaggiesToFlam(wphot, phot84) - convertMaggiesToFlam(wphot,phot16))[obs['phot_mask']],
+                 marker='s', markersize=10, alpha=0.8, ls='', lw=3, 
+                 markerfacecolor='none', markeredgecolor='maroon', 
+                 markeredgewidth=3, zorder=5)
         ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']], yerr=(convertMaggiesToFlam(wphot, obs['maggies_unc']))[obs['phot_mask']], 
                  label='Observed photometry (Broad+MB)', ecolor='red', 
                  marker='o', markersize=10, ls='', lw=3, alpha=0.8, 
@@ -299,6 +298,11 @@ for outroot_index, outroot in enumerate(outroot_array):
                  marker='o', markersize=10, ls='', lw=3, alpha=0.8, 
                  markerfacecolor='none', markeredgecolor='navy', 
                  markeredgewidth=3, zorder = 10)
+        ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], label='Model photometry (Broad only)',
+                  yerr = (convertMaggiesToFlam(wphot, phot84) - convertMaggiesToFlam(wphot,phot16))[obs['phot_mask']],
+                  marker='s', markersize=10, alpha=0.8, ls='', lw=3, 
+                  markerfacecolor='none', markeredgecolor='navy', 
+                  markeredgewidth=3, zorder=5)
     
     # reincorporate scaling
     ax[0].set_ylim((-0.2*norm, norm*2)) #top=1.5e-19 roughly
@@ -307,7 +311,7 @@ for outroot_index, outroot in enumerate(outroot_array):
     ax[0].set_ylabel(r"F$_\lambda$ in ergs/s/cm$^2$/AA", fontsize=10) # in flam units
     ax[0].set_xscale('log')
 
-    ax[0].legend(loc='best', fontsize=9)
+    ax[0].legend(loc='upper right', fontsize=9)
     ax[0].set_title(str(int(obs['objid'])))
     ax[0].tick_params(axis='both', which='major', labelsize=10)
     
@@ -365,18 +369,22 @@ for outroot_index, outroot in enumerate(outroot_array):
             tlast_fraction=tlast_fraction, tflex_frac=tflex_frac, nflex=nflex, nfixed=nfixed, zred=zred)
         allsfrs[iteration,:] = (masses  / dt)
         
-    ####### OBTAIN ZRED INSET PLOT ####### 
-    #create the inset axes for the zred - IN PROGRESS
-    '''
-    import seaborn as sns  
-    inset = fig.add_axes([0.4, 1.0, 0.15, 0.15])
-    zred_weighted = np.array([quantile(zred_thisdraw, [16,50,84], weights=res.get('weights', None))])
+    ####### OBTAIN ZRED INSET PLOT #######
+    # dynesty resample_equal function
+    # input: weighted zred samples
+    # output: new set of samples that are all equally-weighted
+    import seaborn as sns
+    zred_weighted = utils.resample_equal(zred_thisdraw, res.get('weights', None))
+    if(outroot_index == 0): #medium bands
+        inset_ax.axvline(x = obs['zred'], color='black', linestyle='-', label="$z_{spec}$")
+        sns.kdeplot(zred_weighted, color='maroon', label="$z_{phot}$", ax = inset_ax)
     if(outroot_index == 1): #medium bands
-        inset = sns.kdeplot(np.array(zred_weighted), bw=0.5, color="maroon", label="$z_{phot}$")
-    if(outroot_index == 2): #medium bands
-        inset = sns.kdeplot(np.array(zred_weighted), bw=0.5, color="navy", label="$z_{phot}$")
-    '''
-     
+        sns.kdeplot(zred_weighted, color='navy', label="$z_{phot}$", ax = inset_ax)
+    
+    inset_ax.set_xlabel('')
+    inset_ax.set_ylabel('')
+    inset_ax.set_yticks([])
+    
     # calculate interpolated SFR and cumulative mass  
     # with each likelihood draw you can convert the agebins from units of lookback time to units of age 
     # using the redshift at that likelihood draw, and put it on your fixed grid of ages
@@ -519,13 +527,18 @@ ax[2].tick_params(axis='both', which='major', labelsize=10)
 
 print('Finished derivative plot')
 
+# Legend settings for inset plot
+# add a color coded legend once all inset plotted
+leg = inset_ax.legend(handlelength=0, frameon=False, fontsize=12)
+for line,text in zip(leg.get_lines(),leg.get_texts()):
+    text.set_color(line.get_color())
+
 plt.show()
 # save plot
 fig.tight_layout() 
 fig.savefig(plotdir+'sfh/' + filename, bbox_inches='tight')
 
 print('saved sfh to '+plotdir+'sfh/'+filename) 
-plt.close(fig)
 print('Made SFH plot')
 '''
 # and now we want to write out all of these outputs so we can have them for later!
