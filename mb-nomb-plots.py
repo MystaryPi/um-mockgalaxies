@@ -379,7 +379,7 @@ for outroot_index, outroot in enumerate(outroot_array):
     inset_ax.set_xlabel('')
     inset_ax.set_ylabel('')
     inset_ax.set_yticks([])
-    inset_ax.set_xlim((1.8,3.25))
+    inset_ax.set_xlim((obs['zred'] - 1.20,obs['zred']+ 0.25))
     
     # calculate interpolated SFR and cumulative mass  
     # with each likelihood draw you can convert the agebins from units of lookback time to units of age 
