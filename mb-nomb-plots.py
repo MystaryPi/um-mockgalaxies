@@ -49,24 +49,24 @@ cosmo = FlatLambdaCDM(H0=70, Om0=.3)
 if len(sys.argv) > 0:
     objid = str(sys.argv[1]) # example: 559120319
 
-plotdir = 'plots-mb-nomb/'
+plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/plots-mb-nomb/'
 
 # Retrieve correct mcmc files for mb + nomb
-root = '/Users/michpark/JWST_Programs/um-mockgalaxies/'
-for files in os.walk(root + 'mb-0.65/'):
+root = '/Users/michpark/JWST_Programs/mockgalaxies/final/'
+for files in os.walk(root + 'z1mb/'):
         for filename in files[2]:
             if objid in filename:
-                name_path = os.path.join(root + 'mb-0.65/',filename)
+                name_path = os.path.join(root + 'z1mb/',filename)
                 outroot_mb = name_path
-for files in os.walk(root + 'nomb-0.65/'):
+for files in os.walk(root + 'z1nomb/'):
         for filename in files[2]:
             if objid in filename:
-                name_path = os.path.join(root + 'nomb-0.65/',filename)
+                name_path = os.path.join(root + 'z1nomb/',filename)
                 outroot_nomb = name_path        
 
 print('Making plots for...')
 print('MB: '+outroot_mb)
-print('No MB: '+outroot_mb)
+print('No MB: '+outroot_nomb)
 
 # functions to make sure we interpret the results correctly....
 def quantile(data, percents, weights=None):
@@ -179,7 +179,7 @@ if not os.path.exists(plotdir+'sfh'):
     
 #check to see if duplicates exist
 counter=0
-filename = objid + '_{}.pdf' #defines filename for all objects
+filename = objid + '_z1_{}.pdf' #defines filename for all objects
 while os.path.isfile(plotdir+'sfh/'+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made
@@ -187,7 +187,7 @@ filename = filename.format(counter) #iterate until a unique file is made
 fig, ax = plt.subplots(3,1,figsize=(8,12))
 #create the inset axes for the zred 
 #inset_ax = fig.add_axes([0.16, 0.75, 0.2, 0.12]) # without tightlayout
-inset_ax = fig.add_axes([0.14, 0.83, 0.2, 0.12])
+inset_ax = fig.add_axes([0.14, 0.84, 0.2, 0.12])
 
 for outroot_index, outroot in enumerate(outroot_array):
     # outroot_index = 0 is MB, outroot_index = 1 is no MB
@@ -195,8 +195,8 @@ for outroot_index, outroot in enumerate(outroot_array):
     res, obs, mod = results_from("{}".format(outroot), dangerous=True) 
     sps = get_sps(res)
 
-    gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-    spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+    gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+    spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
 
     print('Object ID: ' + str(obs['objid']))
@@ -276,33 +276,29 @@ for outroot_index, outroot in enumerate(outroot_array):
     # wphot = wave_effective
     
     if(outroot_index == 0): # medium bands
-        ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map), label='MAP Model spectrum (Broad+MB)',
-               lw=1.5, color='maroon', alpha=0.7, zorder=0)    
-        ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], label='Model photometry (Broad+MB)',
-                 yerr = (convertMaggiesToFlam(wphot, phot84) - convertMaggiesToFlam(wphot,phot16))[obs['phot_mask']],
-                 marker='s', markersize=10, alpha=0.8, ls='', lw=3, 
+        mb_model = ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map),
+               lw=1.5, color='maroon', alpha=0.6, zorder=0)    
+        ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], 
+                 marker='s', markersize=10, alpha=0.6, ls='', lw=2, 
                  markerfacecolor='none', markeredgecolor='maroon', 
-                 markeredgewidth=3, zorder=5)
-        ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']], yerr=(convertMaggiesToFlam(wphot, obs['maggies_unc']))[obs['phot_mask']], 
-                 label='Observed photometry (Broad+MB)', ecolor='red', 
-                 marker='o', markersize=10, ls='', lw=3, alpha=0.8, 
-                 markerfacecolor='none', markeredgecolor='maroon', 
+                 markeredgewidth=2, zorder=5, label='Broad+MB model')
+        ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']],  
+                 marker='o', markersize=7, ls='', lw=1.5, alpha=1, 
+                 markerfacecolor='black', markeredgecolor='maroon', 
                  markeredgewidth=3, zorder = 5)   
         norm_wl = ((wspec>6300) & (wspec<6500))
         norm = np.nanmax(convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']])
     if(outroot_index == 1): # no medium bands  
-        ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map), label='MAP Model spectrum (Broad only)',
-               lw=1.5, color='navy', alpha=0.7, zorder=0)    
-        ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']], yerr=(convertMaggiesToFlam(wphot, obs['maggies_unc']))[obs['phot_mask']], 
-                 label='Observed photometry (Broad only)', ecolor='blue', 
-                 marker='o', markersize=10, ls='', lw=3, alpha=0.8, 
+        nomb_model = ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map),
+               lw=1.5, color='navy', alpha=0.6, zorder=0)    
+        ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']], 
+                 marker='o', markersize=10, ls='', lw=1.5, alpha=0.6, 
                  markerfacecolor='none', markeredgecolor='navy', 
-                 markeredgewidth=3, zorder = 10)
-        ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], label='Model photometry (Broad only)',
-                  yerr = (convertMaggiesToFlam(wphot, phot84) - convertMaggiesToFlam(wphot,phot16))[obs['phot_mask']],
-                  marker='s', markersize=10, alpha=0.8, ls='', lw=3, 
-                  markerfacecolor='none', markeredgecolor='navy', 
-                  markeredgewidth=3, zorder=5)
+                 markeredgewidth=2, zorder = 10)
+        ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], 
+                  marker='s', markersize=7, alpha=1, ls='', lw=2, 
+                  markerfacecolor='black', markeredgecolor='navy', 
+                  markeredgewidth=3, zorder=5, label='Broad only model')
     
     # reincorporate scaling
     ax[0].set_ylim((-0.2*norm, norm*2)) #top=1.5e-19 roughly
@@ -310,8 +306,7 @@ for outroot_index, outroot in enumerate(outroot_array):
     ax[0].set_xlabel('Observed Wavelength (' + r'$\AA$' + ')', fontsize=10)
     ax[0].set_ylabel(r"F$_\lambda$ in ergs/s/cm$^2$/AA", fontsize=10) # in flam units
     ax[0].set_xscale('log')
-
-    ax[0].legend(loc='upper right', fontsize=9)
+    
     ax[0].set_title(str(int(obs['objid'])))
     ax[0].tick_params(axis='both', which='major', labelsize=10)
     
@@ -376,7 +371,7 @@ for outroot_index, outroot in enumerate(outroot_array):
     import seaborn as sns
     zred_weighted = utils.resample_equal(zred_thisdraw, res.get('weights', None))
     if(outroot_index == 0): #medium bands
-        inset_ax.axvline(x = obs['zred'], color='black', linestyle='-', label="$z_{spec}$")
+        inset_ax.axvline(x = obs['zred'], color='black', linestyle='--', label="$z_{spec}$")
         sns.kdeplot(zred_weighted, color='maroon', label="$z_{phot}$", ax = inset_ax)
     if(outroot_index == 1): #medium bands
         sns.kdeplot(zred_weighted, color='navy', label="$z_{phot}$", ax = inset_ax)
@@ -384,6 +379,7 @@ for outroot_index, outroot in enumerate(outroot_array):
     inset_ax.set_xlabel('')
     inset_ax.set_ylabel('')
     inset_ax.set_yticks([])
+    inset_ax.set_xlim((1.8,3.25))
     
     # calculate interpolated SFR and cumulative mass  
     # with each likelihood draw you can convert the agebins from units of lookback time to units of age 
@@ -526,6 +522,11 @@ ax[2].legend(loc='best', fontsize=9)
 ax[2].tick_params(axis='both', which='major', labelsize=10)
 
 print('Finished derivative plot')
+
+# building the legend for the spectrum plot
+#ax[0].scatter([], [], color='black', marker='o', s=10, label=r'$Observed (\textcolor{maroon}{Broad+MB,} \color{navy}{Broad only})$') # adds a black dot onto the legend, representing observed
+ax[0].scatter([], [], color='black', marker='o', s=10, label=r'Observed (Broad+MB, Broad only)') # adds a black dot onto the legend, representing observed
+ax[0].legend(loc='upper right', fontsize=9)
 
 # Legend settings for inset plot
 # add a color coded legend once all inset plotted
