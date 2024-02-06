@@ -358,8 +358,8 @@ for p in range(len(tflex_array)):
 
     ax.plot(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, label='True SFH' if p == 0 else "", color='black', lw=1.7, marker="o") # INPUT SFH
     # Each for loop iteration plots output SFH in a different color
-    ax.plot(lbt_interp, sfrPercent[:,2], lw=1.5, color=color_table[p], label=str(tflex_array[p])) 
-    ax.fill_between(lbt_interp, sfrPercent[:,1], sfrPercent[:,3], color=color_table[p], alpha=.3)
+    ax.plot(lbt_interp, sfrPercent[:,2], lw=1.7, color=color_table[p], label=str(tflex_array[p])) 
+    ax.fill_between(lbt_interp, sfrPercent[:,1], sfrPercent[:,3], color=color_table[p], alpha=.1)
 
     print('Finished SFH')
  
@@ -400,10 +400,10 @@ for p in range(len(tflex_array)):
     # Plot derivative for input + output SFH, + quenching threshold from Wren's paper
     # Plot vertical lines for the quench time on the SFH plot
     if len(x_i) != 0:
-        ax.axvline(x_i[0], linestyle='--', lw=1, color='black')
+        ax.axvline(x_i[0], linestyle='--', lw=1.5, color='black')
     
     if len(x_o != 0):
-        ax.axvline(x_o[0], linestyle='--', lw=1, color=color_table[p])
+        ax.axvline(x_o[0], linestyle='--', lw=1.5, color=color_table[p])
 
 ax.set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
 ax.set_yscale('log')
