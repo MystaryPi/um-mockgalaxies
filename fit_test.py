@@ -1,3 +1,9 @@
+'''
+Given a directory of mcmc files, will iterate through each galaxy fit and plot different 
+galaxy attributes as scatterplots/histograms. 
+
+python fit_test.py /path/to/mcmc/directory/
+'''
 import numpy as np
 from prospect.models import priors, SedModel
 from prospect.models.sedmodel import PolySedModel
@@ -133,7 +139,9 @@ nflex=5
 nfixed=3
 
 # assign directory #DONT DO IN SHERLOCK - NO SEABORN
-directory = '/Users/michpark/JWST_Programs/mockgalaxies/freez3mb/' #nov_z3 vs. tlast_z3fixed
+# read in a command-line argument for THE OBJID of the galaxy
+if len(sys.argv) > 0:
+    directory = str(sys.argv[1]) # example: '/Users/michpark/JWST_Programs/mockgalaxies/final/z3mb/'
 plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/big_plots/'
 cosmo = FlatLambdaCDM(H0=70, Om0=.3)
 
@@ -157,10 +165,7 @@ zred_array = []
 fig, ax = plt.subplots(4,2,figsize=(9,9))
 from um_prospector_param_file import updated_logsfr_ratios_to_masses_psb, updated_psb_logsfr_ratios_to_agebins
 
-
 for mcmcfile in os.listdir(directory):
-        #SPECIFICALLY 121104703 - new_mcmc_29_121104703_1688582046_mcmc.h5 (nan example)
-        #SPECIFICALLY 121072637 - new_mcmc_6_121072637_1688582046_mcmc.h5 (input sfh beyond output sfh)
         mcmcfile = os.path.join(directory, mcmcfile)
         #print('Making plots for '+str(mcmcfile))
 
@@ -337,21 +342,17 @@ ax[1,1].set_xlabel("Recovered redshift")
 ax[1,1].axvline(spsdict['zred'], ls='--',color='black', lw=2, label='Input redshift: {0:.3f}'.format(spsdict['zred']))
 ax[1,1].set_xlim(2.7,3.3)
 
-
-
 # DUST2 - violin
-ax[2,0].hist(dust2_array, bins=20, color='silver')
+ax[2,0].hist(dust2_array, bins='auto', range=[0.0,1.0], color='silver')
 ax[2,0].set_xlabel("Recovered dust2")
 ax[2,0].axvline(0.2, ls='--',color='black', lw=2, label='Input dust2: 0.0')
 ax[2,0].set_xlim(-0.2,2.5)
-ax[2,0].set_ylim(0,40)
 
 #DUST_INDEX - violin
-ax[2,1].hist(dust_index_array, bins=20, color='gray')
+ax[2,1].hist(dust_index_array, bins='auto', range=[-1.0,0.5], color='gray')
 ax[2,1].set_xlabel("Recovered dust_index")
 ax[2,1].axvline(0, ls='--',color='black', lw=2, label='Input dust index: 0.0')
 ax[2,1].set_xlim(-1.2,0.6)
-ax[2,1].set_ylim(0,40) 
 
 # LOGMASS - scatter
 ax[0,0].axline((10.5, 10.5), slope=1., ls='--', color='black', lw=2)
@@ -382,8 +383,6 @@ ax[3,0].set_xlabel(r'Input quench time [Gyr]')
 ax[3,1].axline((0, 0), slope=1., ls='--', color='black', lw=2)
 ax[3,1].set_ylabel(r'Recovered mass integral')
 ax[3,1].set_xlabel(r'Input mass integral')
-ax[3,1].set_ylim(6, 12)
-ax[3,1].set_xlim(8.5,12)
 ax[3,1].set_xlim(left=5)
 ax[3,1].set_ylim(bottom=5)
 
