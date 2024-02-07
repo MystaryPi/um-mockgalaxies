@@ -1,11 +1,8 @@
 '''
-Duplicate of plotting file, except that it takes plots a medium band galaxy fit with
-its non-medium band counterpart. (FOR free redshift, flexible adjustments)
+Duplicate of plotting file, except that it takes plots the SFH of various tflex values.
 
-Plots true (input) SFH in black, Broad+MB in maroon, Broad only in navy.
-
-Input objid of the galaxy to plot + will automatically retrieve MB + no MB versions:
-run mb-nomb-plots.py 559120319
+Input objid of the galaxy to plot + will automatically retrieve tflex versions:
+run tflex-plots.py 559120319
 '''
 
 import numpy as np
@@ -49,24 +46,25 @@ cosmo = FlatLambdaCDM(H0=70, Om0=.3)
 if len(sys.argv) > 0:
     objid = str(sys.argv[1]) # example: 559120319
 
-plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/plots-mb-nomb/'
+plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/plots-tflex/'
 
 # Retrieve correct mcmc files for mb + nomb
-root = '/Users/michpark/JWST_Programs/mockgalaxies/final/'
-for files in os.walk(root + 'z1mb/'):
-        for filename in files[2]:
-            if objid in filename:
-                name_path = os.path.join(root + 'z1mb/',filename)
-                outroot_mb = name_path
-for files in os.walk(root + 'z1nomb/'):
-        for filename in files[2]:
-            if objid in filename:
-                name_path = os.path.join(root + 'z1nomb/',filename)
-                outroot_nomb = name_path        
+root = '/Users/michpark/JWST_Programs/mockgalaxies/tflex-mcmc/'
+# 0.45, 0.55, 0.65, 0.75 - spaced apart by 0.1
+tflex_array = [0.45, 0.55, 0.65, 0.75]
+tflex_directory = [""]*4
+for p in range(len(tflex_array)):
+    directory_string = root + 'tflex-' + str(tflex_array[p]) + '/'
+    for files in os.walk(directory_string):
+            for filename in files[2]:
+                if objid in filename:
+                    name_path = os.path.join(directory_string,filename)
+                    tflex_directory[p] = name_path # populate the directory of paths    
 
+# Display each tflex directory
 print('Making plots for...')
-print('MB: '+outroot_mb)
-print('No MB: '+outroot_nomb)
+for p in range(len(tflex_array)):
+    print(str(tflex_array[p]) + ": " + tflex_directory[p])
 
 # functions to make sure we interpret the results correctly....
 def quantile(data, percents, weights=None):
@@ -169,30 +167,23 @@ def trap(x, y):
         return np.sum((x[1:] - x[:-1]) * (y[1:] + y[:-1]))/2. 
 
 ##############################################################################  
-outroot_array = [outroot_mb, outroot_nomb]
-
 # make sure plot directory exits
 if not os.path.exists(plotdir):
     os.mkdir(plotdir)
-if not os.path.exists(plotdir+'sfh'):
-    os.mkdir(plotdir+'sfh')
-    
+
 #check to see if duplicates exist
 counter=0
-filename = objid + '_z3_{}.pdf' #defines filename for all objects
-while os.path.isfile(plotdir+'sfh/'+filename.format(counter)):
+filename = objid + '_tflex_{}.pdf' #defines filename for all objects
+while os.path.isfile(plotdir+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made
 
-fig, ax = plt.subplots(3,1,figsize=(8,12))
-#create the inset axes for the zred 
-#inset_ax = fig.add_axes([0.16, 0.75, 0.2, 0.12]) # without tightlayout
-inset_ax = fig.add_axes([0.14, 0.84, 0.2, 0.12])
+fig, ax = plt.subplots(figsize=(8,6))
 
-for outroot_index, outroot in enumerate(outroot_array):
+for p in range(len(tflex_array)):
     # outroot_index = 0 is MB, outroot_index = 1 is no MB
     # grab results (dictionary), the obs dictionary, and our corresponding models
-    res, obs, mod = results_from("{}".format(outroot), dangerous=True) 
+    res, obs, mod = results_from("{}".format(tflex_directory[p]), dangerous=True) 
     sps = get_sps(res)
 
     gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
@@ -264,54 +255,6 @@ for outroot_index, outroot in enumerate(outroot_array):
     # Make plot of data and model
     c = 2.99792458e18
 
-    ###### PLOTS IN FLAM ###### 
-    def convertMaggiesToFlam(w, maggies):
-        # converts maggies to f_lambda units
-        # For OBS DICT photometries - use w as obs['wave_effective'] - observed wavelengths 
-        c = 2.99792458e18 #AA/s
-        flux_fnu = maggies * 10**-23 * 3631 # maggies to cgs fnu
-        flux_flambda = flux_fnu * c/w**2 # v Fnu = lambda Flambda
-        return flux_flambda
-
-    # wphot = wave_effective
-    
-    if(outroot_index == 0): # medium bands
-        mb_model = ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map),
-               lw=1.5, color='maroon', alpha=0.6, zorder=0)    
-        ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], 
-                 marker='s', markersize=10, alpha=0.6, ls='', lw=2, 
-                 markerfacecolor='none', markeredgecolor='maroon', 
-                 markeredgewidth=2, zorder=5, label='Broad+MB model')
-        ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']],  
-                 marker='o', markersize=7, ls='', lw=1.5, alpha=1, 
-                 markerfacecolor='black', markeredgecolor='maroon', 
-                 markeredgewidth=3, zorder = 5)   
-        norm_wl = ((wspec>6300) & (wspec<6500))
-        norm = np.nanmax(convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']])
-    if(outroot_index == 1): # no medium bands  
-        nomb_model = ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map),
-               lw=1.5, color='navy', alpha=0.6, zorder=0)    
-        ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']], 
-                 marker='o', markersize=10, ls='', lw=1.5, alpha=0.6, 
-                 markerfacecolor='none', markeredgecolor='navy', 
-                 markeredgewidth=2, zorder = 10)
-        ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], 
-                  marker='s', markersize=7, alpha=1, ls='', lw=2, 
-                  markerfacecolor='black', markeredgecolor='navy', 
-                  markeredgewidth=3, zorder=5, label='Broad only model')
-    
-    # reincorporate scaling
-    ax[0].set_ylim((-0.2*norm, norm*2)) #top=1.5e-19 roughly
-    ax[0].set_xlim((1e3, 1e5))
-    ax[0].set_xlabel('Observed Wavelength (' + r'$\AA$' + ')', fontsize=10)
-    ax[0].set_ylabel(r"F$_\lambda$ in ergs/s/cm$^2$/AA", fontsize=10) # in flam units
-    ax[0].set_xscale('log')
-    
-    ax[0].set_title(str(int(obs['objid'])))
-    ax[0].tick_params(axis='both', which='major', labelsize=10)
-    
-    print('Made spectrum plot')
-
     ######################## SFH for FLEXIBLE continuity model ########################
     # obtain sfh from universemachine
     um_sfh = gal['sfh'][:,1]
@@ -364,23 +307,6 @@ for outroot_index, outroot in enumerate(outroot_array):
             tlast_fraction=tlast_fraction, tflex_frac=tflex_frac, nflex=nflex, nfixed=nfixed, zred=zred)
         allsfrs[iteration,:] = (masses  / dt)
         
-    ####### OBTAIN ZRED INSET PLOT #######
-    # dynesty resample_equal function
-    # input: weighted zred samples
-    # output: new set of samples that are all equally-weighted
-    import seaborn as sns
-    zred_weighted = utils.resample_equal(zred_thisdraw, res.get('weights', None))
-    if(outroot_index == 0): #medium bands
-        inset_ax.axvline(x = obs['zred'], color='black', linestyle='--', label="$z_{spec}$")
-        sns.kdeplot(zred_weighted, color='maroon', label="$z_{phot}$", ax = inset_ax)
-    if(outroot_index == 1): #medium bands
-        sns.kdeplot(zred_weighted, color='navy', label="$z_{phot}$", ax = inset_ax)
-    
-    inset_ax.set_xlabel('')
-    inset_ax.set_ylabel('')
-    inset_ax.set_yticks([])
-    inset_ax.set_xlim((obs['zred'] - 1.20,obs['zred']+ 0.25))
-    
     # calculate interpolated SFR and cumulative mass  
     # with each likelihood draw you can convert the agebins from units of lookback time to units of age 
     # using the redshift at that likelihood draw, and put it on your fixed grid of ages
@@ -427,20 +353,13 @@ for outroot_index, outroot in enumerate(outroot_array):
     massFrac = 1 - massPercent[lbt_interp==1, 1:].flatten()[::-1]  
 
     ######## SFH PLOTTING in LBT ##########
-    
-    # Convert x-axis from age to LBT
-    ax[1].plot(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, label='True SFH' if outroot_index == 0 else "", color='black', lw=1.7, marker="o") # INPUT SFH
-    if(outroot_index == 0): # medium band
-        ax[1].plot(lbt_interp, sfrPercent[:,2], color='maroon', lw=1.5, label='Broad+MB SFH fit') 
-        ax[1].fill_between(lbt_interp, sfrPercent[:,1], sfrPercent[:,3], color='maroon', alpha=.3)
-    if(outroot_index == 1): # no medium band
-        ax[1].plot(lbt_interp, sfrPercent[:,2], color='navy', lw=1.5, label='Broad only SFH fit') 
-        ax[1].fill_between(lbt_interp, sfrPercent[:,1], sfrPercent[:,3], color='navy', alpha=.3)
-    
-    #label='Input SFH (z = {0:.3f})'.format(spsdict['zred'])
-    #label='Output SFH (z = {0:.3f})'.format(mod.params['zred'][0])
-    #ax[1].plot(t_plot, sfr_ml[::-1], 'g--', lw=2, label='Maximum Likelihood SFH') # MLE SFH
-    #ax[1].plot([], [], ' ', label='Input mass: {0:.3f}, MLE output mass: {1:.3f}'.format(np.log10(mtot_init), np.log10(soln.x[9]))) # MLE MASS ESTIMATE
+    # Obtain a range of colors (corresponding with tflex)
+    color_table = ['#457b9d','#2a9d8f', '#f4a261', '#e76f51']
+
+    ax.plot(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, label='True SFH' if p == 0 else "", color='black', lw=1.7, marker="o") # INPUT SFH
+    # Each for loop iteration plots output SFH in a different color
+    ax.plot(lbt_interp, sfrPercent[:,2], lw=1.7, color=color_table[p], label=str(tflex_array[p])) 
+    ax.fill_between(lbt_interp, sfrPercent[:,1], sfrPercent[:,3], color=color_table[p], alpha=.1)
 
     print('Finished SFH')
  
@@ -480,87 +399,25 @@ for outroot_index, outroot in enumerate(outroot_array):
 
     # Plot derivative for input + output SFH, + quenching threshold from Wren's paper
     # Plot vertical lines for the quench time on the SFH plot
-    ax[2].axhline(-500, linestyle='--', color='black', label='-500 ' + r'$M_{\odot} yr^{-2}$' + ' quenching threshold' if outroot_index == 0 else "") # Quench threshold
-    
     if len(x_i) != 0:
-        ax[2].plot(x_d_input, y_d_input, '-o', color='black', lw=1.5, label='True SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_i[0])))[2:-2] + ' Gyr)' if outroot_index == 0 else "")
-        ax[1].axvline(x_i[0], linestyle='--', lw=1, color='black')
-        ax[2].axvline(x_i[0], linestyle='--', lw=1, color='black')
-    else:
-        ax[2].plot(x_d_input, y_d_input, '-o', color='black', lw=1.5, label='True SFH time derivative (does not pass quenching threshold)')
-        
-    if(outroot_index == 0):
-        if len(x_o != 0):
-            ax[2].plot(x_d_output, y_d_output, '-o', color='maroon', lw=1.5, label='Broad+MB SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_o[0])))[2:-2] + ' Gyr)')
-            ax[1].axvline(x_o[0], linestyle='--', lw=1, color='maroon')
-            ax[2].axvline(x_o[0], linestyle='--', lw=1, color='maroon')
-        else: 
-            ax[2].plot(x_d_output, y_d_output, '-o', color='maroon', lw=1.5, label='Broad+MB SFH time derivative (does not pass quenching threshold)')
-    if(outroot_index == 1):
-        if len(x_o != 0):
-            ax[2].plot(x_d_output, y_d_output, '-o', color='navy', lw=1.5, label='Broad only SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_o[0])))[2:-2] + ' Gyr)')
-            ax[1].axvline(x_o[0], linestyle='--', lw=1, color='navy')
-            ax[2].axvline(x_o[0], linestyle='--', lw=1, color='navy')
-        else: 
-            ax[2].plot(x_d_output, y_d_output, '-o', color='navy', lw=1.5, label='Broad only SFH time derivative (does not pass quenching threshold)')
+        ax.axvline(x_i[0], linestyle='--', lw=1.5, color='black')
     
-    print("For loop completed")
+    if len(x_o != 0):
+        ax.axvline(x_o[0], linestyle='--', lw=1.5, color=color_table[p])
 
-ax[1].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
-ax[1].set_yscale('log')
-ax[1].legend(loc='best', fontsize=10)
-ax[1].tick_params(axis='both', which='major', labelsize=10)
-ax[1].set_ylabel('SFR [' + r'$M_{\odot} /yr$' + ']', fontsize = 10)
-#ax[1].set_xlabel('years before observation [Gyr]')
-ax[1].set_xlabel('Lookback Time [Gyr]', fontsize = 10)
-
-ax[2].set_ylabel("SFH Time Derivative " + r'$[M_{\odot} yr^{-2}]$', fontsize=10)
-ax[2].set_xlabel('Lookback Time [Gyr]', fontsize=10)
-ax[2].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
-ax[2].set_ylim(-1000, 1000)
-ax[2].legend(loc='best', fontsize=9)
-ax[2].tick_params(axis='both', which='major', labelsize=10)
-
-print('Finished derivative plot')
-
-# building the legend for the spectrum plot
-#ax[0].scatter([], [], color='black', marker='o', s=10, label=r'$Observed (\textcolor{maroon}{Broad+MB,} \color{navy}{Broad only})$') # adds a black dot onto the legend, representing observed
-ax[0].scatter([], [], color='black', marker='o', s=10, label=r'Observed (Broad+MB, Broad only)') # adds a black dot onto the legend, representing observed
-ax[0].legend(loc='upper right', fontsize=9)
-
-# Legend settings for inset plot
-# add a color coded legend once all inset plotted
-leg = inset_ax.legend(handlelength=0, frameon=False, fontsize=12)
-for line,text in zip(leg.get_lines(),leg.get_texts()):
-    text.set_color(line.get_color())
+ax.set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
+ax.set_yscale('log')
+ax.legend(title="tflex_fraction", loc='best', fontsize=10)
+ax.tick_params(axis='both', which='major', labelsize=10)
+ax.set_ylabel('SFR [' + r'$M_{\odot} /yr$' + ']', fontsize = 10)
+#ax.set_xlabel('years before observation [Gyr]')
+ax.set_xlabel('Lookback Time [Gyr]', fontsize = 10)
 
 plt.show()
 # save plot
 fig.tight_layout() 
-fig.savefig(plotdir+'sfh/' + filename, bbox_inches='tight')
+fig.savefig(plotdir + filename, bbox_inches='tight')
 
-print('saved sfh to '+plotdir+'sfh/'+filename) 
-print('Made SFH plot')
-'''
-# and now we want to write out all of these outputs so we can have them for later!
-# make a lil class that will just save all of the outputs we give it, so that it's easy to pack all these together later
-class Output:
-    def __init__(self, **kwds):
-        self.__dict__.update(kwds)
+print('saved tflex comparison plot to '+plotdir+filename) 
+print('Made tflex plot')
 
-# gather all the spectra (obs AND best-fit plus uncertainties)
-# spec_obs = np.stack((wspec, obs['spectrum'], obs['unc'])) # maggies
-# spec_fit = np.stack((wspec, spec16, spec50, spec84)) # maggies
-phot_obs = np.stack((wphot, obs['maggies']))
-phot_fit = np.stack((wphot, phot16, phot50, phot84))
-
-
-# make an instance of the output structure for this dict
-out = Output(phot_obs=phot_obs, phot_fit=phot_fit, sfrs=sfrPercent, mass=massPercent, 
-    objname=str(obs['objid']), massfrac=massFrac, percentiles=percentiles, massTot=totmassPercent)
-
-# and save it
-if not os.path.exists('dicts/'):
-    os.mkdir('dicts/')
-np.savez('dicts/'+str(obs['objid'])+'.npz', res=out)
-'''
