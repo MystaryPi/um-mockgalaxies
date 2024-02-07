@@ -354,7 +354,7 @@ for p in range(len(tflex_array)):
 
     ######## SFH PLOTTING in LBT ##########
     # Obtain a range of colors (corresponding with tflex)
-    color_table = ['#ffe6c5','#debd9c', '#414141', '#6a3118']
+    color_table = ['#457b9d','#2a9d8f', '#f4a261', '#e76f51']
 
     ax.plot(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, label='True SFH' if p == 0 else "", color='black', lw=1.7, marker="o") # INPUT SFH
     # Each for loop iteration plots output SFH in a different color

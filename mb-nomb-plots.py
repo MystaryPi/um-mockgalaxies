@@ -179,7 +179,7 @@ if not os.path.exists(plotdir+'sfh'):
     
 #check to see if duplicates exist
 counter=0
-filename = objid + '_z1_{}.pdf' #defines filename for all objects
+filename = objid + '_z3_{}.pdf' #defines filename for all objects
 while os.path.isfile(plotdir+'sfh/'+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made
@@ -195,8 +195,8 @@ for outroot_index, outroot in enumerate(outroot_array):
     res, obs, mod = results_from("{}".format(outroot), dangerous=True) 
     sps = get_sps(res)
 
-    gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-    spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+    gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+    spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
 
     print('Object ID: ' + str(obs['objid']))
