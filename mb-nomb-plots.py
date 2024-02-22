@@ -51,17 +51,20 @@ if len(sys.argv) > 0:
 
 plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/plots-mb-nomb/'
 
+map_bool = True # would be better to have this as a command line prompt
+# if true, plots MAP spectra + photometry. if false, plots median spectra + photometry
+
 # Retrieve correct mcmc files for mb + nomb
 root = '/Users/michpark/JWST_Programs/mockgalaxies/final/'
-for files in os.walk(root + 'z1mb/'):
+for files in os.walk(root + 'z3mb/'):
         for filename in files[2]:
             if objid in filename:
-                name_path = os.path.join(root + 'z1mb/',filename)
+                name_path = os.path.join(root + 'z3mb/',filename)
                 outroot_mb = name_path
-for files in os.walk(root + 'z1nomb/'):
+for files in os.walk(root + 'z3nomb/'):
         for filename in files[2]:
             if objid in filename:
-                name_path = os.path.join(root + 'z1nomb/',filename)
+                name_path = os.path.join(root + 'z3nomb/',filename)
                 outroot_nomb = name_path        
 
 print('Making plots for...')
@@ -259,6 +262,9 @@ for outroot_index, outroot in enumerate(outroot_array):
     phot16 = np.array([quantile(allphot[i,:], 16, weights = weights[idx]) for i in range(allphot.shape[0])])
     phot50 = np.array([quantile(allphot[i,:], 50, weights = weights[idx]) for i in range(allphot.shape[0])])
     phot84 = np.array([quantile(allphot[i,:], 84, weights = weights[idx]) for i in range(allphot.shape[0])])
+    
+    #spec50 = np.array([quantile(allspec[i,:], 50, weights = weights[idx]) for i in range(allspec.shape[0])])
+    
     print('Done calculating spectra')
 
     # Make plot of data and model
@@ -276,29 +282,59 @@ for outroot_index, outroot in enumerate(outroot_array):
     # wphot = wave_effective
     
     if(outroot_index == 0): # medium bands
-        mb_model = ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map),
-               lw=1.5, color='maroon', alpha=0.6, zorder=0)    
-        ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], 
-                 marker='s', markersize=10, alpha=0.6, ls='', lw=2, 
-                 markerfacecolor='none', markeredgecolor='maroon', 
-                 markeredgewidth=2, zorder=5, label='Broad+MB model')
-        ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']],  
-                 marker='o', markersize=7, ls='', lw=1.5, alpha=1, 
-                 markerfacecolor='black', markeredgecolor='maroon', 
-                 markeredgewidth=3, zorder = 5)   
+        if(map_bool):
+            # MAP SPECTRA
+            mb_model = ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map),
+                   lw=1.5, color='maroon', alpha=0.6, zorder=0)  
+               
+            # MAP PHOTOMETRY
+            ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, mphot_map)[obs['phot_mask']], 
+                     marker='s', markersize=10, alpha=0.6, ls='', lw=2, 
+                     markerfacecolor='none', markeredgecolor='maroon', 
+                     markeredgewidth=2, zorder=5, label='Broad+MB model')
+            ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']],  
+                      marker='o', markersize=7, ls='', lw=1.5, alpha=1, 
+                      markerfacecolor='black', markeredgecolor='maroon', 
+                      markeredgewidth=3, zorder = 5)        
+        else: 
+            # MEDIAN PHOTOMETRY
+            ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], 
+                     marker='s', markersize=10, alpha=0.6, ls='', lw=2, 
+                     markerfacecolor='none', markeredgecolor='maroon', 
+                     markeredgewidth=2, zorder=5, label='Broad+MB model')
+        
+            ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']],  
+                     marker='o', markersize=7, ls='', lw=1.5, alpha=1, 
+                     markerfacecolor='black', markeredgecolor='maroon', 
+                     markeredgewidth=3, zorder = 5)   
+                     
         norm_wl = ((wspec>6300) & (wspec<6500))
         norm = np.nanmax(convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']])
     if(outroot_index == 1): # no medium bands  
-        nomb_model = ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map),
-               lw=1.5, color='navy', alpha=0.6, zorder=0)    
-        ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']], 
-                 marker='o', markersize=10, ls='', lw=1.5, alpha=0.6, 
-                 markerfacecolor='none', markeredgecolor='navy', 
-                 markeredgewidth=2, zorder = 10)
-        ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], 
-                  marker='s', markersize=7, alpha=1, ls='', lw=2, 
-                  markerfacecolor='black', markeredgecolor='navy', 
-                  markeredgewidth=3, zorder=5, label='Broad only model')
+        if(map_bool):
+            # MAP SPECTRA
+            nomb_model = ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map),
+                   lw=1.5, color='navy', alpha=0.6, zorder=0)   
+               
+            # MAP PHOTOMETRY
+            ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, mphot_map)[obs['phot_mask']], 
+                    marker='s', markersize=7, alpha=1, ls='', lw=2, 
+                    markerfacecolor='black', markeredgecolor='navy', 
+                    markeredgewidth=3, zorder=5, label='Broad only model')
+            ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']], 
+                     marker='o', markersize=10, ls='', lw=1.5, alpha=0.6, 
+                     markerfacecolor='none', markeredgecolor='navy', 
+                     markeredgewidth=2, zorder = 10)
+        else:
+            # MEDIAN PHOTOMETRY
+            ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']], 
+                     marker='o', markersize=10, ls='', lw=1.5, alpha=0.6, 
+                     markerfacecolor='none', markeredgecolor='navy', 
+                     markeredgewidth=2, zorder = 10)
+            ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], 
+                      marker='s', markersize=7, alpha=1, ls='', lw=2, 
+                      markerfacecolor='black', markeredgecolor='navy', 
+                      markeredgewidth=3, zorder=5, label='Broad only model')
     
     # reincorporate scaling
     ax[0].set_ylim((-0.2*norm, norm*2)) #top=1.5e-19 roughly
