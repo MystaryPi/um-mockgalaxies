@@ -51,7 +51,7 @@ if len(sys.argv) > 0:
 
 plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/plots-mb-nomb/'
 
-map_bool = True # would be better to have this as a command line prompt
+map_bool = False # would be better to have this as a command line prompt
 # if true, plots MAP spectra + photometry. if false, plots median spectra + photometry
 
 # Retrieve correct mcmc files for mb + nomb
@@ -263,7 +263,7 @@ for outroot_index, outroot in enumerate(outroot_array):
     phot50 = np.array([quantile(allphot[i,:], 50, weights = weights[idx]) for i in range(allphot.shape[0])])
     phot84 = np.array([quantile(allphot[i,:], 84, weights = weights[idx]) for i in range(allphot.shape[0])])
     
-    #spec50 = np.array([quantile(allspec[i,:], 50, weights = weights[idx]) for i in range(allspec.shape[0])])
+    spec50 = np.array([quantile(allspec[1,i,:], 50, weights = weights[idx]) for i in range(allspec.shape[1])])
     
     print('Done calculating spectra')
 
@@ -297,6 +297,10 @@ for outroot_index, outroot in enumerate(outroot_array):
                       markerfacecolor='black', markeredgecolor='maroon', 
                       markeredgewidth=3, zorder = 5)        
         else: 
+            #MEDIAN SPECTRA
+            mb_model = ax[0].plot(allspec[0,:,ii], convertMaggiesToFlam(allspec[0,:,ii],spec50),
+                   lw=1.5, color='maroon', alpha=0.6, zorder=0)  
+            
             # MEDIAN PHOTOMETRY
             ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], 
                      marker='s', markersize=10, alpha=0.6, ls='', lw=2, 
@@ -326,6 +330,9 @@ for outroot_index, outroot in enumerate(outroot_array):
                      markerfacecolor='none', markeredgecolor='navy', 
                      markeredgewidth=2, zorder = 10)
         else:
+            nomb_model = ax[0].plot(allspec[0,:,ii], convertMaggiesToFlam(allspec[0,:,ii], spec50),
+                   lw=1.5, color='navy', alpha=0.6, zorder=0)
+                   
             # MEDIAN PHOTOMETRY
             ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']], 
                      marker='o', markersize=10, ls='', lw=1.5, alpha=0.6, 

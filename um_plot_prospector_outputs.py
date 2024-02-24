@@ -311,7 +311,9 @@ ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies
          marker='o', markersize=10, ls='', lw=3, alpha=0.8, 
          markerfacecolor='none', markeredgecolor='black', 
          markeredgewidth=3)            
-     
+norm_wl = ((wspec>6300) & (wspec<6500))
+norm = np.nanmax(convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']])
+ax[0].set_ylim((-0.2*norm, norm*2)) #top=1.5e-19 roughly
 ax[0].set_xlim((1e3, 1e5))
 ax[0].set_xlabel('Observed Wavelength (' + r'$\AA$' + ')', fontsize=10)
 ax[0].set_ylabel(r"F$_\lambda$ in ergs/s/cm$^2$/AA", fontsize=10) # in flam units
@@ -584,7 +586,7 @@ if not os.path.exists(plotdir+'sfh'):
 fig.savefig(plotdir+'sfh/' + filename, bbox_inches='tight')
   
 print('saved sfh to '+plotdir+'sfh/'+filename) 
-plt.close(fig)
+#plt.close(fig)
 print('Made SFH plot')
 '''
 # and now we want to write out all of these outputs so we can have them for later!
