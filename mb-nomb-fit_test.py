@@ -182,8 +182,8 @@ for directory_index, directory in enumerate(directory_array):
             #print('Making plots for '+str(mcmcfile))
 
             res, obs, mod = results_from("{}".format(mcmcfile), dangerous=True)
-            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
             sps = get_sps(res)
 
@@ -294,19 +294,22 @@ for directory_index, directory in enumerate(directory_array):
             lbt_interp: lookback time of FULL range
             sfh: takes in SFH of FULL range
             '''
-            def averageSFR(lbt_interp, sfh, timescale = 0.1):
+            def averageSFR(lbt, sfh, timescale = 0.1):
                 # Obtain LBT + area under SFH over chosen range
-                timescaleLBT = [lbt_interp[i] * 1e9 for i in range(len(lbt_interp)) if lbt_interp[i] <= timescale]
-                timescaleSFH = [sfh[i] for i in range(len(sfh)) if lbt_interp[i] <= timescale]
+                timescaleLBT = [lbt[j]*1e9 for j in range(len(lbt)) if lbt[j] <= timescale]
+            
                 if(len(timescaleLBT) > 1):
-                    timescaleMass = np.abs(trap(np.array(timescaleLBT), np.array(timescaleSFH))) # in solar masses
-                else: # just one value for LBT
-                    timescaleMass = 0.1*1e9*timescaleSFH[0]
-
-                return timescaleMass / (timescale*1e9)
+                    timescaleSFH = [sfh[j] for j in range(len(sfh)) if lbt[j] <= timescale]
+                    timescaleMass = np.abs(trap(np.array(timescaleLBT), np.array(timescaleSFH))) # in solar masses (yr*Msun/yr)
+                    return timescaleMass / (timescale*1e9)
+                else: # just one value for LBT (should only occur for input SFH, output SFH is fine resolution)
+                    k = len(lbt)
+                    return np.abs((sfh[k-2] - sfh[k-1])/2)+sfh[k-2] # get the last two values and average over (Msun/yr)
 
             inputAverageSFR = averageSFR(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, timescale=0.1)
             outputAverageSFR = averageSFR(lbt_interp, sfrPercent[:,2], timescale=0.1)
+            
+            print("For " + str(obs['objid']) + ", we have input INST: " + str(um_sfh[-1]) + ", input AVE: " + str(inputAverageSFR) + ", outputINST: " + str(sfrPercent[:,2][0]) + ", output AVE: " + str(outputAverageSFR))
 
             if(directory_index == 0): # MB
                 #LOGMASS
@@ -325,7 +328,7 @@ for directory_index, directory in enumerate(directory_array):
                 ax[3,1].plot(inputAverageSFR,outputAverageSFR, marker='.', markersize=10, ls='', lw=2, markerfacecolor='maroon', markeredgecolor='maroon', alpha=0.7)
                 
             if(directory_index == 1): # No MB
-                #LOGMASS
+                #LOGMASS 
                 ax[0,0].errorbar(obs['logM'],percentiles['logmass'][1],yerr=np.vstack((percentiles['logmass'][1]-percentiles['logmass'][0],percentiles['logmass'][2]-percentiles['logmass'][1])), marker='.', markersize=10, ls='', lw=2, 
                     c='navy',markeredgecolor='navy',ecolor='navy',elinewidth=1.4, alpha=0.7,label="Broad only" if first_iteration else "")
                 

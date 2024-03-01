@@ -267,6 +267,9 @@ for ii, i in enumerate(idx):
 phot16 = np.array([quantile(allphot[i,:], 16, weights = weights[idx]) for i in range(allphot.shape[0])])
 phot50 = np.array([quantile(allphot[i,:], 50, weights = weights[idx]) for i in range(allphot.shape[0])])
 phot84 = np.array([quantile(allphot[i,:], 84, weights = weights[idx]) for i in range(allphot.shape[0])])
+
+spec50 = np.array([quantile(allspec[1,i,:], 50, weights = weights[idx]) for i in range(allspec.shape[1])])
+    
 print('Done calculating spectra')
 
 # Make plot of data and model
@@ -299,8 +302,11 @@ def convertMaggiesToFlam(w, maggies):
     return flux_flambda
 
 # wphot = wave_effective
-ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map), label='MAP Model spectrum',
-       lw=1.5, color='grey', alpha=0.7, zorder=10)    
+#ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map), label='MAP Model spectrum',
+#       lw=1.5, color='grey', alpha=0.7, zorder=10)    
+# Median spectrum
+ax[0].plot(allspec[0,:,ii], convertMaggiesToFlam(allspec[0,:,ii],spec50), label='Median spectrum',
+                   lw=1.5, color='grey', alpha=0.7, zorder=10) 
 ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], label='Model photometry',
          yerr = (convertMaggiesToFlam(wphot, phot84) - convertMaggiesToFlam(wphot,phot16))[obs['phot_mask']],
          marker='s', markersize=10, alpha=0.8, ls='', lw=3, 
