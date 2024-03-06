@@ -569,7 +569,7 @@ if len(x_o != 0):
     ax[2].axvline(x_o[0], linestyle='--', lw=1, color='black')
 else: 
     ax[2].plot(x_d_output, y_d_output, '-o', color='black', lw=1.5, label='Output SFH time derivative (does not pass quenching threshold)')
-ax[2].axhline(quenching_threshhold, linestyle='--', color='maroon', label='Normalized quenching threshhold') # Quench threshold
+ax[2].axhline(quenching_threshhold, linestyle='--', color='maroon', label='Normalized quenching threshold') # Quench threshold
 
 ax[2].set_ylabel("SFH Time Derivative " + r'$[M_{\odot} yr^{-2}]$', fontsize=10)
 ax[2].set_xlabel('Lookback Time [Gyr]', fontsize=10)

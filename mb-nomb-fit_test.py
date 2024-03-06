@@ -182,8 +182,8 @@ for directory_index, directory in enumerate(directory_array):
             #print('Making plots for '+str(mcmcfile))
 
             res, obs, mod = results_from("{}".format(mcmcfile), dangerous=True)
-            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
             sps = get_sps(res)
 
@@ -378,9 +378,11 @@ for directory_index, directory in enumerate(directory_array):
         
 
             # Use intersect package to determine where derivatives intersect the quenching threshold
-            x_i, y_i = intersection_function(x_d_input, np.full(len(x_d_input), -500), y_d_input)
-            x_o, y_o = intersection_function(x_d_output, np.full(len(x_d_output), -500), y_d_output)
-
+            # Finding the max and minimum, then normalizing the threshold 
+            quenching_threshhold = -np.abs(max(input_sfh)-min(input_sfh)/0.5) #originally -500
+            x_i, y_i = intersection_function(x_d_input, np.full(len(x_d_input), quenching_threshhold), y_d_input)
+            x_o, y_o = intersection_function(x_d_output, np.full(len(x_d_output), quenching_threshhold), y_d_output)
+            
             # both quench times must be present
             if len(x_i) != 0 and len(x_o) != 0:
                 if(directory_index == 0): # mb
