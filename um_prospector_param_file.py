@@ -30,7 +30,7 @@ the first agebin do not get to move, but the rest do. '''
 # --------------
 
 run_params = {'verbose':True, #this controls how much output to screen
-              'debug':False, #if true, stops before mcmc burn in so you can look at model and stuff
+              'debug':True, #if true, stops before mcmc burn in so you can look at model and stuff
               'outfile':'squiggle', 
               'output_pickles': False,
               'rescale_spectrum': False, # we have real units on our spectrum
@@ -47,7 +47,7 @@ run_params = {'verbose':True, #this controls how much output to screen
               'initial_disp': 0.1,            # default dispersion in parameters for walker ball
               # Obs data parameters
               'objid':0,
-              'mediumBands': True,
+              'mediumBands': False,
               #'catfile': '/Users/michpark/JWST_Programs/UNCOVER_DR1_LW_D032_catalog.fits',
               'phottable':None,                                     
               'logify_spectrum':False,
@@ -124,8 +124,11 @@ def load_obs(objid, mediumBands, **kwargs):
         obs['phot_mask'] = [True]*len(obs['maggies']) #always true because our fake data is all good
     else:
         # No medium bands - exclude the bands that we don't need
-        obs['phot_mask'] = [True, True, True, True, True, True, True, False, False, False, 
-        False, False, False, False, False, False, False, False, False, False, False]
+        #obs['phot_mask'] = [True, True, True, True, True, True, True, False, False, False, 
+        #False, False, False, False, False, False, False, False, False, False, False]
+        
+        # FOR BALMER BREAK!!!!!
+        obs['phot_mask'] = [True, True, True, True, True, True, True, False, False, True, False, False, False, False, False, False, False, False, False, False, False]
     
     obs['objid'] = objid
     obs = fix_obs(obs)

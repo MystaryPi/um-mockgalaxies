@@ -251,7 +251,7 @@ def convertMaggiesToFlam(maggies):
     # converts maggies to f_lambda units, for OBS DICT photometries
     c = 2.99792458e18 #AA/s
     flux_fnu = maggies * 10**-23 * 3631 # maggies to cgs fnu
-    flux_flambda = flux_fnu * c/obs['wave_effective']**2 # v Fnu = lambda Flambda
+    flux_flambda = flux_fnu * c/(obs['wave_effective'][obs['phot_mask']])**2 # v Fnu = lambda Flambda
     return flux_flambda
 
         
@@ -468,10 +468,8 @@ if __name__ == "__main__":
         ####### Plots in Flambda Units ########
         # Created new convertMaggiesToFlam function that will do a conversion to flambda given maggies (ALR inputs wave_eff)
         saxes[1].plot(w*(1+obs['zred']), spec, label='Galaxy spectrum',lw=1.5, color='grey', alpha=0.7, zorder=10)    
-        saxes[1].errorbar(obs['wave_effective'], convertMaggiesToFlam(obs['maggies_orig']), label='Intrinsic photometry', marker='s', markersize=10, 
-           alpha=0.8, ls='', lw=3, markerfacecolor='none', markeredgecolor='green', markeredgewidth=3)
-        saxes[1].errorbar(obs['wave_effective'], convertMaggiesToFlam(obs['maggies']), yerr=convertMaggiesToFlam(obs['maggies_unc']), label='Observed photometry',
-            ecolor='red', marker='o', markersize=10, ls='', lw=3, alpha=0.8, markerfacecolor='none', markeredgecolor='black', markeredgewidth=3)
+        saxes[1].errorbar(obs['wave_effective'][obs['phot_mask']], convertMaggiesToFlam(obs['maggies_orig'][obs['phot_mask']]), label='Intrinsic photometry', marker='s', markersize=10, alpha=0.8, ls='', lw=3, markerfacecolor='none', markeredgecolor='green', markeredgewidth=3)
+        saxes[1].errorbar(obs['wave_effective'][obs['phot_mask']], convertMaggiesToFlam(obs['maggies'][obs['phot_mask']]), yerr=convertMaggiesToFlam(obs['maggies_unc'][obs['phot_mask']]), label='Observed photometry', ecolor='red', marker='o', markersize=10, ls='', lw=3, alpha=0.8, markerfacecolor='none', markeredgecolor='black', markeredgewidth=3)
 
         saxes[1].set_xscale('log')
         saxes[1].set_xlim(1e3, 1e5)
