@@ -158,9 +158,9 @@ res, obs, mod = results_from("{}".format(outroot), dangerous=True) # This displa
 print("{}".format(outroot))
 sps = get_sps(res)
 
-#obs = (np.load('obs-z3/umobs_'+str(obs_mcmc['objid'])+'.npz', allow_pickle=True))['obs']
-gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+#obs = (np.load('obs-z3/umobs_'+str(obs_mcmc['objid'])+å'.npz', allow_pickle=True))['obs']
+gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
 
 print('Object ID: ' + str(obs['objid']))
@@ -550,9 +550,10 @@ x_d_output = (np.array(output_lbt)[:-1] + np.array(output_lbt)[1:]) / 2
 
 # Use intersect package to determine where derivatives intersect the quenching threshold
 # Finding the max and minimum, then normalizing the threshold 
-quenching_threshhold = -np.abs(max(input_sfh)-min(input_sfh)/0.5) #originally -500
-x_i, y_i = intersection_function(x_d_input, np.full(len(x_d_input), quenching_threshhold), y_d_input)
-x_o, y_o = intersection_function(x_d_output, np.full(len(x_d_output), quenching_threshhold), y_d_output)
+input_quenching_threshhold = -np.abs(max(input_sfh)-min(input_sfh))/0.5 #originally -500
+output_quenching_threshhold = -np.abs(max(output_sfh)-min(output_sfh))/0.5 #originally -500
+x_i, y_i = intersection_function(x_d_input, np.full(len(x_d_input), input_quenching_threshhold), y_d_input)
+x_o, y_o = intersection_function(x_d_output, np.full(len(x_d_output), output_quenching_threshhold), y_d_output)
 
 # Plot derivative for input + output SFH, + quenching threshold from Wren's paper
 # Plot vertical lines for the quench time on the SFH plot
@@ -569,7 +570,8 @@ if len(x_o != 0):
     ax[2].axvline(x_o[0], linestyle='--', lw=1, color='black')
 else: 
     ax[2].plot(x_d_output, y_d_output, '-o', color='black', lw=1.5, label='Output SFH time derivative (does not pass quenching threshold)')
-ax[2].axhline(quenching_threshhold, linestyle='--', color='maroon', label='Normalized quenching threshold') # Quench threshold
+ax[2].axhline(input_quenching_threshhold, linestyle='--', color='blue', label='Normalized quenching threshold (input SFH)') # Quench threshold
+ax[2].axhline(output_quenching_threshhold, linestyle='--', color='black', label='Normalized quenching threshold (output SFH)') # Quench threshold
 
 ax[2].set_ylabel("SFH Time Derivative " + r'$[M_{\odot} yr^{-2}]$', fontsize=10)
 ax[2].set_xlabel('Lookback Time [Gyr]', fontsize=10)
