@@ -331,9 +331,10 @@ ax[1].axvline(0, ls='--', color='black', lw=2)
 ax[1].set_xlabel(r'Difference in $log M_{stellar}$ (log $M_{sun}$)')
 
 # create legend with the colors
-legend0 = ax[0].legend(*scatter0.legend_elements(num=5),
-                    loc="best", title="Difference in dust2")
-ax[0].add_artist(legend0)
+plt.colorbar(scatter1, ax=ax[1], label="Difference in dust2", orientation="vertical") 
+#legend0 = ax[0].legend(*scatter0.legend_elements(num=5),
+#                    loc="best", title="Difference in dust2")
+#ax[0].add_artist(legend0)
 
 plt.tight_layout()
 
