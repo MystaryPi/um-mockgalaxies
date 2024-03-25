@@ -518,12 +518,13 @@ for outroot_index, outroot in enumerate(outroot_array):
     x_d_output = (np.array(output_lbt)[:-1] + np.array(output_lbt)[1:]) / 2
 
     # Use intersect package to determine where derivatives intersect the quenching threshold
-    x_i, y_i = intersection_function(x_d_input, np.full(len(x_d_input), -500), y_d_input)
-    x_o, y_o = intersection_function(x_d_output, np.full(len(x_d_output), -500), y_d_output)
-
+    quenching_threshhold = -np.abs(max(input_sfh)-min(input_sfh)/0.5) #originally -500
+    x_i, y_i = intersection_function(x_d_input, np.full(len(x_d_input), quenching_threshhold), y_d_input)
+    x_o, y_o = intersection_function(x_d_output, np.full(len(x_d_output), quenching_threshhold), y_d_output)
+    
     # Plot derivative for input + output SFH, + quenching threshold from Wren's paper
     # Plot vertical lines for the quench time on the SFH plot
-    ax[2].axhline(-500, linestyle='--', color='black', label='-500 ' + r'$M_{\odot} yr^{-2}$' + ' quenching threshold' if outroot_index == 0 else "") # Quench threshold
+    ax[2].axhline(quenching_threshhold, linestyle='--', color='black', label='Normalized quenching threshold' if outroot_index == 0 else "") # Quench threshold
     
     if len(x_i) != 0:
         ax[2].plot(x_d_input, y_d_input, '-o', color='black', lw=1.5, label='True SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_i[0])))[2:-2] + ' Gyr)' if outroot_index == 0 else "")
