@@ -304,7 +304,7 @@ for directory_index, directory in enumerate(directory_array):
                     return timescaleMass / (timescale*1e9)
                 else: # just one value for LBT (should only occur for input SFH, output SFH is fine resolution)
                     k = len(lbt)
-                    return np.abs((sfh[k-2] - sfh[k-1])/2)+sfh[k-2] # get the last two values and average over (Msun/yr)
+                    return sfh[k-1] # the last value - flatlined
 
             inputAverageSFR = averageSFR(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, timescale=0.1)
             outputAverageSFR = averageSFR(lbt_interp, sfrPercent[:,2], timescale=0.1)
