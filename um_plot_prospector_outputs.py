@@ -494,7 +494,7 @@ ax[1].plot(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_s
 #ax[1].plot([], [], ' ', label='Input mass: {0:.3f}, MLE output mass: {1:.3f}'.format(np.log10(mtot_init), np.log10(soln.x[9]))) # MLE MASS ESTIMATE
 
 ax[1].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
-ax[1].set_yscale('log')
+#ax[1].set_yscale('log')
 ax[1].legend(loc='best', fontsize=9)
 ax[1].tick_params(axis='both', which='major', labelsize=10)
 ax[1].set_ylabel('SFR [' + r'$M_{\odot} /yr$' + ']', fontsize = 10)
