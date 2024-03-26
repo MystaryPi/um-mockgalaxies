@@ -258,7 +258,8 @@ def convertMaggiesToFlam(maggies):
 def getMags(sps, filternames=['jwst_f115w','jwst_f150w','jwst_f200w','jwst_f277w','jwst_f356w','jwst_f410m','jwst_f444w','jwst_f070w','jwst_f090w','jwst_f140m','jwst_f162m','jwst_f182m','jwst_f210m','jwst_f250m','jwst_f300m',
     'jwst_f335m','jwst_f360m','jwst_f410m','jwst_f430m','jwst_f460m','jwst_f480m']):
 
-    # NOMB - 'jwst_f115w','jwst_f150w','jwst_f200w','jwst_f277w','jwst_f356w','jwst_f410m','jwst_f444w'
+    # NOMB before - 'jwst_f115w','jwst_f150w','jwst_f200w','jwst_f277w','jwst_f356w','jwst_f410m','jwst_f444w'
+    # NOMB new - 'jwst_f115w','jwst_f150w','jwst_f200w','jwst_f277w','jwst_f356w','jwst_f410m','jwst_f444w','acs_wfc_f435w','acs_wfc_f606w', 'acs_wfc_f814w','jwst_f090w','wfc3_ir_f105w','wfc3_ir_f125w','wfc3_ir_f140w','wfc3_ir_f160w'
 
     ''' JADES filters (previous)
     filternames=['jwst_f090w', 'jwst_f115w', 'jwst_f150w', 'jwst_f200w',
@@ -341,8 +342,25 @@ def build_obs(filters, mags, gal, depths): #should be build_obs technically
                 #'spitzer_irac_ch4':22.7
                 } 
             '''
+        # Broad only NEW
+        depths = {'jwst_f115w':29.18,
+            'jwst_f150w':29.14,
+            'jwst_f200w':29.23,
+            'jwst_f277w':29.57,
+            'jwst_f356w':29.70,
+            'jwst_f410m':29.02,
+            'jwst_f444w':29.21,
+            'acs_wfc_f435w':29.35,
+            'acs_wfc_f606w':28.95, 
+            'acs_wfc_f814w':27.58,
+            'jwst_f090w':29.51,
+            'wfc3_ir_f105w':27.17,
+            'wfc3_ir_f125w':27.20,
+            'wfc3_ir_f140w':28.88,
+            'wfc3_ir_f160w':26.77}
         
-        # Depths from UNCOVER vs UNCOVER + mega science JWST
+        # Broad+MB before
+        '''
         depths = {'jwst_f115w':30.05,
             'jwst_f150w':30.18,
             'jwst_f200w':30.12,
@@ -364,8 +382,9 @@ def build_obs(filters, mags, gal, depths): #should be build_obs technically
             'jwst_f430m':28.1, 
             'jwst_f460m':27.8, 
             'jwst_f480m':27.8}
+        '''
         
-    # NOMB
+    # Broad only - before
     '''
     depths = {'jwst_f115w':30.05,
             'jwst_f150w':30.18,
