@@ -166,8 +166,8 @@ for directory_index, directory in enumerate(directory_array):
             res, obs, mod = results_from("{}".format(mcmcfile), dangerous=True)
             print('----- Making plots for '+str(obs['objid']) + ' in ' + str(directory) + ' -----')
             
-            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
             sps = get_sps(res)
         
@@ -329,6 +329,11 @@ ax[1].axline((0, 0), slope=0, ls='--', color='black', lw=2)
 ax[1].axvline(0, ls='--', color='black', lw=2)
 #ax[1].set_xlim(spsdict['zred']-0.35,spsdict['zred']+0.35)
 ax[1].set_xlabel(r'Difference in $log M_{stellar}$ (log $M_{sun}$)')
+
+ax[0].set_xlim((-0.3, 0.4))
+ax[0].set_ylim((-0.5, 0.2))
+ax[1].set_xlim((-0.3, 0.4))
+ax[1].set_ylim((-0.5, 0.2))
 
 # create legend with the colors
 plt.colorbar(scatter1, ax=ax[1], label="Difference in dust2", orientation="vertical") 
