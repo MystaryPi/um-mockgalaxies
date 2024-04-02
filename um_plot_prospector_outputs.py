@@ -494,7 +494,7 @@ ax[1].plot(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_s
 #ax[1].plot([], [], ' ', label='Input mass: {0:.3f}, MLE output mass: {1:.3f}'.format(np.log10(mtot_init), np.log10(soln.x[9]))) # MLE MASS ESTIMATE
 
 ax[1].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
-#ax[1].set_yscale('log')
+ax[1].set_yscale('log')
 ax[1].legend(loc='best', fontsize=9)
 ax[1].tick_params(axis='both', which='major', labelsize=10)
 ax[1].set_ylabel('SFR [' + r'$M_{\odot} /yr$' + ']', fontsize = 10)
@@ -541,17 +541,28 @@ output_lbt_mask = [i for i, n in enumerate(output_lbt) if n > lbtLimit]
 for i in sorted(output_lbt_mask, reverse=True): # go in reverse order to prevent indexing error
     output_sfh = np.delete(output_sfh, i)
     output_lbt = np.delete(output_lbt, i)
+    
+# will take in the SFH and the time period over which you want to average
+#np.gradient(input_sfh, input_lbt) #evenly spaced across the time points
+def quenching_timescales(x, y, timescale):
+    # Need to also adjust a new x evenly spaced by new timescale
+    x_d = np.arange(x[0],x[-1],timescale)
+    
+    # Calculate deriv of y (sfh) with respect to x (lbt) using a specified
+    # step size with respect to x (e.g. 50, 100, 200 Myr)
+    dy_dx = -np.gradient(np.interp(x_d, x, y), timescale)
 
-# Find derivatives of input + output SFH, age is adjusted b/c now difference between points
-y_d_input = -np.diff(input_sfh) / np.diff(input_lbt) 
-y_d_output = -np.diff(output_sfh) / np.diff(output_lbt)
-x_d_input = (np.array(input_lbt)[:-1] + np.array(input_lbt)[1:]) / 2
-x_d_output = (np.array(output_lbt)[:-1] + np.array(output_lbt)[1:]) / 2
+    return x_d, dy_dx
+    
+x_d_input, y_d_input = quenching_timescales(input_lbt, input_sfh, 0.2)
+x_d_output, y_d_output = quenching_timescales(output_lbt, output_sfh, 0.2)
 
 # Use intersect package to determine where derivatives intersect the quenching threshold
 # Finding the max and minimum, then normalizing the threshold 
-input_quenching_threshhold = -np.abs(max(input_sfh)-min(input_sfh))/0.5 #originally -500
-output_quenching_threshhold = -np.abs(max(output_sfh)-min(output_sfh))/0.5 #originally -500
+#input_quenching_threshhold = -np.abs(max(input_sfh)-min(input_sfh))/0.5 #originally -500
+#output_quenching_threshhold = -np.abs(max(output_sfh)-min(output_sfh))/0.5 #originally -500
+input_quenching_threshhold = -100
+output_quenching_threshhold = -100
 x_i, y_i = intersection_function(x_d_input, np.full(len(x_d_input), input_quenching_threshhold), y_d_input)
 x_o, y_o = intersection_function(x_d_output, np.full(len(x_d_output), output_quenching_threshhold), y_d_output)
 
@@ -570,13 +581,13 @@ if len(x_o != 0):
     ax[2].axvline(x_o[0], linestyle='--', lw=1, color='black')
 else: 
     ax[2].plot(x_d_output, y_d_output, '-o', color='black', lw=1.5, label='Output SFH time derivative (does not pass quenching threshold)')
-ax[2].axhline(input_quenching_threshhold, linestyle='--', color='blue', label='Normalized quenching threshold (input SFH)') # Quench threshold
-ax[2].axhline(output_quenching_threshhold, linestyle='--', color='black', label='Normalized quenching threshold (output SFH)') # Quench threshold
+ax[2].axhline(input_quenching_threshhold, linestyle='--', color='black', label='-100 $M_{\odot} yr^{-2}$ quenching threshold') # Quench threshold
+#ax[2].axhline(output_quenching_threshhold, linestyle='--', color='black', label='-500 $M_{\odot} yr^{-2}$ quenching threshold (output SFH)') # Quench threshold
 
 ax[2].set_ylabel("SFH Time Derivative " + r'$[M_{\odot} yr^{-2}]$', fontsize=10)
 ax[2].set_xlabel('Lookback Time [Gyr]', fontsize=10)
 ax[2].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
-ax[2].set_ylim(-1000, 1000)
+ax[2].set_ylim(-250, 250)
 ax[2].legend(loc='best', fontsize=9)
 ax[2].tick_params(axis='both', which='major', labelsize=10)
 
