@@ -60,18 +60,18 @@ run_params = {'verbose':True, #this controls how much output to screen
               'zspec': None, # this leaves redshift a free parameter
               'tflex_frac': 0.6,
               'tlast_max_frac': 0.3,
-              # --- dynesty parameters ---
+              # --- dynesty parameters ---              
               'dynesty':True,
               'nested_bound': 'multi',        # bounding method
               'nested_sample': 'rwalk',       # sampling method
-              'nested_walks': 70,     # sampling gets very inefficient w/ high S/N spectra
-              'nested_nlive_init': 350, # a finer resolution in likelihood space
-              'nested_nlive_batch': 300,
+              #'nested_walks': 32,     # original-64 sampling gets very inefficient w/ high S/N spectra
+              'nested_nlive_init': 1600, # a finer resolution in likelihood space # can decrease this to ~400 if fixing to z_spec for shorter runtime
+              'nested_nlive_batch': 400,
               'nested_maxbatch': None, # was None-- changed re ben's email 5/21/19
-              'nested_maxcall': 7500000, # was 5e7 -- changed to 5e6 re ben's email on 5/21/19
-              'nested_maxcall_init':7500000,
+              'nested_maxcall': None,
+              'nested_maxcall_init':None,
               'nested_bootstrap': 20,
-              'nested_dlogz_init': 0.02,
+              'nested_dlogz_init': 0.01,
               'nested_weight_kwargs':{'pfrac': 1.0},
               'nested_target_neff':20000,
               'nested_first_update':{'min_ncall': 20000, 'min_eff': 7.5},
