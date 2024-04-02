@@ -182,8 +182,8 @@ for directory_index, directory in enumerate(directory_array):
             #print('Making plots for '+str(mcmcfile))
 
             res, obs, mod = results_from("{}".format(mcmcfile), dangerous=True)
-            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
             sps = get_sps(res)
 
@@ -294,22 +294,25 @@ for directory_index, directory in enumerate(directory_array):
             lbt_interp: lookback time of FULL range
             sfh: takes in SFH of FULL range
             '''
-            def averageSFR(lbt, sfh, timescale = 0.1):
-                # Obtain LBT + area under SFH over chosen range
-                timescaleLBT = [lbt[j]*1e9 for j in range(len(lbt)) if lbt[j] <= timescale]
             
-                if(len(timescaleLBT) > 1):
-                    timescaleSFH = [sfh[j] for j in range(len(sfh)) if lbt[j] <= timescale]
-                    timescaleMass = np.abs(trap(np.array(timescaleLBT), np.array(timescaleSFH))) # in solar masses (yr*Msun/yr)
-                    return timescaleMass / (timescale*1e9)
-                else: # just one value for LBT (should only occur for input SFH, output SFH is fine resolution)
-                    k = len(lbt)
-                    return sfh[k-1] # the last value - flatlined
+            def averageSFR(lbt, sfh, timescale = 0.1):  
+                from numpy import trapz
+                # Obtain LBT + area under SFH over chosen range, using trapezoidal method
+                newLBT = np.linspace(0, 0.1, num=300)
+                if(lbt[0] <= lbt[1]): # not reversed
+                    newSFH = np.interp(newLBT, lbt, sfh) # needs to be in positive direction
+                else:
+                    newSFH = np.interp(newLBT, lbt[::-1], sfh[::-1]) # needs to be in positive direction
+
+                return trapz(newSFH, x=newLBT)/0.1
+                
 
             inputAverageSFR = averageSFR(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, timescale=0.1)
+            outputAverageSFR_LE = averageSFR(lbt_interp, sfrPercent[:,1], timescale=0.1)
             outputAverageSFR = averageSFR(lbt_interp, sfrPercent[:,2], timescale=0.1)
+            outputAverageSFR_UE = averageSFR(lbt_interp, sfrPercent[:,3], timescale=0.1)
             
-            print("For " + str(obs['objid']) + ", we have input INST: " + str(um_sfh[-1]) + ", input AVE: " + str(inputAverageSFR) + ", outputINST: " + str(sfrPercent[:,2][0]) + ", output AVE: " + str(outputAverageSFR))
+            print("For " + str(obs['objid']) + ", we have input INST: " + str(um_sfh[-1]) + ", input AVE: " + str(inputAverageSFR) + ", outputINST: " + str(sfrPercent[:,2][0]) + ", output AVE: " + str(outputAverageSFR) + " with errors: " + str(outputAverageSFR_LE) + " and " + str(outputAverageSFR_UE))
 
             if(directory_index == 0): # MB
                 #LOGMASS
@@ -325,7 +328,7 @@ for directory_index, directory in enumerate(directory_array):
                     markerfacecolor='maroon',markeredgecolor='maroon',ecolor='maroon',elinewidth=1.4, alpha=0.7) 
             
                 #SFR over last 100 Myr
-                ax[3,1].plot(inputAverageSFR,outputAverageSFR, marker='.', markersize=10, ls='', lw=2, markerfacecolor='maroon', markeredgecolor='maroon', alpha=0.7)
+                ax[3,1].errorbar(inputAverageSFR,outputAverageSFR, yerr=np.vstack((outputAverageSFR-outputAverageSFR_LE, outputAverageSFR_UE-outputAverageSFR)), marker='.', markersize=10, ls='', lw=2, markerfacecolor='maroon', markeredgecolor='maroon', ecolor='maroon',elinewidth=1.4, alpha=0.7)
                 
             if(directory_index == 1): # No MB
                 #LOGMASS 
@@ -341,7 +344,7 @@ for directory_index, directory in enumerate(directory_array):
                     c='navy',markeredgecolor='navy',ecolor='navy',elinewidth=1.4, alpha=0.7) 
                 
                 #SFR over last 100 Myr
-                ax[3,1].plot(inputAverageSFR, outputAverageSFR, marker='.', markersize=10, ls='', lw=2, markerfacecolor='navy', alpha=0.7, markeredgecolor='navy')
+                ax[3,1].errorbar(inputAverageSFR,outputAverageSFR, yerr=np.vstack((outputAverageSFR-outputAverageSFR_LE, outputAverageSFR_UE-outputAverageSFR)), marker='.', markersize=10, ls='', lw=2, markerfacecolor='navy', markeredgecolor='navy', ecolor='navy',elinewidth=1.4, alpha=0.7)
                 
             
             dust2_array.append(percentiles['dust2'][1])
