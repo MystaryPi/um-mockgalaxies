@@ -27,7 +27,7 @@ global_model = model_setup.load_model(**run_params)
 # Obs as global
 global_obs = model_setup.load_obs(**run_params)
 # SPS Model instance as global
-sps = model_setup.load_sps(**run_params)
+sps = model_setup.load_sps(obs = global_obs, **run_params)
 
 # -----------------
 # LnP function as global
@@ -127,6 +127,25 @@ if __name__ == "__main__":
     # Use the globals
     model = global_model
     obs = global_obs
+    
+    
+    ### Load emission line wavelengths
+    try:
+        SPS_HOME = os.getenv('SPS_HOME')
+        info = np.genfromtxt(os.path.join(SPS_HOME, 'data', 'emlines_info.dat'),
+                             dtype=[('wave', 'f8'), ('name', '<U20')],
+                             delimiter=',')
+    except(OSError, KeyError, ValueError) as e:
+        print("Could not read and cache emission line info from $SPS_HOME/data/emlines_info.dat")
+        raise(OSError)
+
+    ### save instrumental resolution and emission line rest-frame wavelengths in run_params
+    model.params['sigma_v'] = obs['sigma_v']
+    model.params['spec_obs_wave'] = obs['wavelength']
+    model.params['eline_rest_wave'] = info['wave']
+    
+    
+    # debug mode?
     if rp.get('debug', False):
         halt('stopping for debug')
 
@@ -143,10 +162,12 @@ if __name__ == "__main__":
     if rp['verbose']:
         print('dynesty sampling...')
     tstart = time.time()  # time it
+    nested_stop_kwargs = {"target_n_effective": rp['nested_target_n_effective']}
     dynestyout = fitting.run_dynesty_sampler(lnprobfn, prior_transform, model.ndim,
                                              pool=pool, queue_size=nprocs, 
                                              stop_function=stopping_function,
                                              wt_function=weight_function,
+                                             nested_stop_kwargs=nested_stop_kwargs,
                                              **rp)
     ndur = time.time() - tstart
     print('done dynesty in {0}s'.format(ndur))
