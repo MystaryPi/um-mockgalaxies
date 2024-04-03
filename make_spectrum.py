@@ -251,21 +251,15 @@ def convertMaggiesToFlam(maggies):
     # converts maggies to f_lambda units, for OBS DICT photometries
     c = 2.99792458e18 #AA/s
     flux_fnu = maggies * 10**-23 * 3631 # maggies to cgs fnu
-    flux_flambda = flux_fnu * c/obs['wave_effective']**2 # v Fnu = lambda Flambda
+    flux_flambda = flux_fnu * c/obs['wave_effective'][obs['phot_mask']]**2 # v Fnu = lambda Flambda
     return flux_flambda
 
         
-def getMags(sps, filternames=['jwst_f115w','jwst_f150w','jwst_f200w','jwst_f277w','jwst_f356w','jwst_f410m','jwst_f444w','jwst_f070w','jwst_f090w','jwst_f140m','jwst_f162m','jwst_f182m','jwst_f210m','jwst_f250m','jwst_f300m',
-    'jwst_f335m','jwst_f360m','jwst_f410m','jwst_f430m','jwst_f460m','jwst_f480m']):
+def getMags(sps, filternames=['jwst_f115w','jwst_f150w','jwst_f200w','jwst_f277w','jwst_f356w','jwst_f410m','jwst_f444w','acs_wfc_f435w',
+            'acs_wfc_f606w','acs_wfc_f814w','wfc3_ir_f105w','wfc3_ir_f125w','wfc3_ir_f140w','wfc3_ir_f160w',
+            'jwst_f070w','jwst_f090w','jwst_f140m','jwst_f162m','jwst_f182m','jwst_f210m','jwst_f250m','jwst_f300m',
+            'jwst_f335m','jwst_f360m','jwst_f430m','jwst_f460m','jwst_f480m']):
 
-    # NOMB - 'jwst_f115w','jwst_f150w','jwst_f200w','jwst_f277w','jwst_f356w','jwst_f410m','jwst_f444w'
-
-    ''' JADES filters (previous)
-    filternames=['jwst_f090w', 'jwst_f115w', 'jwst_f150w', 'jwst_f200w',
-             'jwst_f277w', 'jwst_f335m', 'jwst_f356w', 
-             'jwst_f410m', 'jwst_f444w','acs_wfc_f435w', 'acs_wfc_f606w', 'acs_wfc_f775w', 'acs_wfc_f850lp', 'wfc3_ir_f125w', 'wfc3_ir_f140w',
-             'wfc3_ir_f160w']
-    '''
     '''get AB magnitudes in a set of filters given some SFH/t to set
     tabular SFH and a redshift.
     '''
@@ -285,9 +279,7 @@ def getMags(sps, filternames=['jwst_f115w','jwst_f150w','jwst_f200w','jwst_f277w
 
     for i, fil in enumerate(filters):
         magObs[i] = fil.ab_mag(wObs, spec) #magObs in AB magnitude #input: AA, cgs Flambda units
-
-    
-       
+  
     '''
     spec_new = spec * 3.34*10**4 * w**2 / 3631 
     plt.plot(wObs, spec, label='Galaxy spectrum',lw=1.5, color='grey', alpha=0.7, zorder=10)    
@@ -307,75 +299,35 @@ def build_obs(filters, mags, gal, depths): #should be build_obs technically
     # set limiting magnitudes (value detectable at 5 sigma, faintest depth reliably detect) -- these are default for JADES-medium
     # and GOODS-N from Skelton+14 Table 6
     if depths == None:
-        ''' Original depths (JADES survey)
-        depths = {'jwst_f070w': 28.8,
-                'jwst_f090w': 29.4,
-                'jwst_f115w':29.6,
-                'jwst_f150w':29.7,
-                'jwst_f200w':29.8,
-                'jwst_f277w':29.4,
-                'jwst_f335m':28.8,
-                'jwst_f356w':29.4,
-                'jwst_f410m':28.9,
-                'jwst_f444w':29.1,
-                #'mayall_mosaic_U_k1001':26.4, 
-                'acs_wfc_f435w':27.1, 
-                #'subaru_suprimecam_B':26.7, 
-                #'keck_lris_g':26.3, 
-                'acs_wfc_f606w':27.4, 
-                #'subaru_suprimecam_rp':26.2, 
-                #'keck_lris_Rs':25.6,
-                #'subaru_suprimecam_ip':25.8, 
-                'acs_wfc_f775w':26.9, 
-                #'subaru_suprimecam_zp':25.5, 
-                'acs_wfc_f850lp':26.7, 
-                'wfc3_ir_f125w':26.7, 
-                #'subaru_moircs_J':25.0, 
-                'wfc3_ir_f140w':25.9,
-                'wfc3_ir_f160w':26.1, 
-                #'subaru_moircs_H':24.3, 
-                #'subaru_moircs_Ks':24.7,  
-                #'spitzer_irac_ch1':24.5, 
-                #'spitzer_irac_ch2':24.6, 
-                #'spitzer_irac_ch3':22.8, 
-                #'spitzer_irac_ch4':22.7
-                } 
-            '''
-        
         # Depths from UNCOVER vs UNCOVER + mega science JWST
-        depths = {'jwst_f115w':30.05,
+        depths = {'jwst_f115w':30.05, # UNCOVER, JWST
             'jwst_f150w':30.18,
             'jwst_f200w':30.12,
             'jwst_f277w':29.75,
             'jwst_f356w':29.79,
             'jwst_f410m':29.03,
             'jwst_f444w':29.25,
-            'jwst_f070w': 28.9, 
-            'jwst_f090w':29.6, 
-            'jwst_f140m': 28.9, 
-            'jwst_f162m': 29, 
-            'jwst_f182m':29.2, 
-            'jwst_f210m':29, 
-            'jwst_f250m':28.3, 
-            'jwst_f300m':28.7, 
-            'jwst_f335m':28.8, 
-            'jwst_f360m':28.8, 
-            'jwst_f410m':28.8, 
-            'jwst_f430m':28.1, 
-            'jwst_f460m':27.8, 
-            'jwst_f480m':27.8}
-        
-    # NOMB
-    '''
-    depths = {'jwst_f115w':30.05,
-            'jwst_f150w':30.18,
-            'jwst_f200w':30.12,
-            'jwst_f277w':29.75,
-            'jwst_f356w':29.79,
-            'jwst_f410m':29.03,
-            'jwst_f444w':29.25}
-    '''
-    
+            'acs_wfc_f435w':29.45, # UNCOVER, HST
+            'acs_wfc_f606w':29.73, 
+            'acs_wfc_f814w':29.70,
+            'wfc3_ir_f105w': 29.56,
+            'wfc3_ir_f125w':29.09,
+            'wfc3_ir_f140w':28.95,
+            'wfc3_ir_f160w':29.11,
+            'jwst_f070w': 29.60, # MB
+            'jwst_f090w':30.19, 
+            'jwst_f140m': 28.69, 
+            'jwst_f162m': 28.67, 
+            'jwst_f182m':29.06, 
+            'jwst_f210m':29.02, 
+            'jwst_f250m':28.20, 
+            'jwst_f300m':28.66, 
+            'jwst_f335m':28.67, 
+            'jwst_f360m':28.62, 
+            'jwst_f430m':27.72, 
+            'jwst_f460m':27.44, 
+            'jwst_f480m':27.40}
+            
     # divided by 5 because these are 5 sigma errors      
     depths_maggies = {key:10**(-0.4*value)/5 for key, value in depths.items()}   
     unc = [depths_maggies[f.name] for f in filters] # enforce sorted order by filters
@@ -395,8 +347,8 @@ def build_obs(filters, mags, gal, depths): #should be build_obs technically
         obs['phot_mask'] = [True]*len(maggies) #always true b/c our fake data is all good
     else:
         # No medium bands - exclude the bands that we don't need
-        obs['phot_mask'] = [True, True, True, True, True, True, True, False, False, False, 
-        False, False, False, False, False, False, False, False, False, False, False]
+        obs['phot_mask'] = [True, True, True, True, True, True, True, True, True, True, True, True, True, True, False, False, False, 
+        False, False, False, False, False, False, False, False, False, False]
     
     # make a mask -- photometry exists & errors are positive
     #obs['phot_mask'] = np.logical_and(np.isfinite(obs['maggies']),np.array(obs['maggies_unc']))
@@ -468,9 +420,9 @@ if __name__ == "__main__":
         ####### Plots in Flambda Units ########
         # Created new convertMaggiesToFlam function that will do a conversion to flambda given maggies (ALR inputs wave_eff)
         saxes[1].plot(w*(1+obs['zred']), spec, label='Galaxy spectrum',lw=1.5, color='grey', alpha=0.7, zorder=10)    
-        saxes[1].errorbar(obs['wave_effective'], convertMaggiesToFlam(obs['maggies_orig']), label='Intrinsic photometry', marker='s', markersize=10, 
+        saxes[1].errorbar(obs['wave_effective'][obs['phot_mask']], convertMaggiesToFlam(obs['maggies_orig'][obs['phot_mask']]), label='Intrinsic photometry', marker='s', markersize=10, 
            alpha=0.8, ls='', lw=3, markerfacecolor='none', markeredgecolor='green', markeredgewidth=3)
-        saxes[1].errorbar(obs['wave_effective'], convertMaggiesToFlam(obs['maggies']), yerr=convertMaggiesToFlam(obs['maggies_unc']), label='Observed photometry',
+        saxes[1].errorbar(obs['wave_effective'][obs['phot_mask']], convertMaggiesToFlam(obs['maggies'][obs['phot_mask']]), yerr=convertMaggiesToFlam(obs['maggies_unc'][obs['phot_mask']]), label='Observed photometry',
             ecolor='red', marker='o', markersize=10, ls='', lw=3, alpha=0.8, markerfacecolor='none', markeredgecolor='black', markeredgewidth=3)
 
         saxes[1].set_xscale('log')
@@ -493,15 +445,15 @@ if __name__ == "__main__":
         
         plt.show()
         
-        
         '''
+        
         ##### TEMPORARY - plot filters
         # establish bounds
         fig = plt.figure(figsize=(8,4))
         counter = 0
         for f in obs['filters']:
             w, t = f.wavelength.copy(), f.transmission.copy()
-            if counter < 7:
+            if counter < 14:
                 plt.plot(w, t*3, lw=2, color="royalblue")
                 print(counter)
             else:
@@ -522,6 +474,7 @@ if __name__ == "__main__":
         plt.yticks([])
         plt.tight_layout()
         plt.savefig("filters.png", dpi=400)
+        
         '''
     
     """
