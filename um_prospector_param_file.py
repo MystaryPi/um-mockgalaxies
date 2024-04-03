@@ -123,9 +123,9 @@ def load_obs(objid, mediumBands, **kwargs):
     if(mediumBands == True):
         obs['phot_mask'] = [True]*len(obs['maggies']) #always true because our fake data is all good
     else:
-        # No medium bands - exclude the bands that we don't need
-        obs['phot_mask'] = [True, True, True, True, True, True, True, False, False, False, 
-        False, False, False, False, False, False, False, False, False, False, False]
+        # No medium bands - exclude the bands that we don't need, updated for HST+UNCOVER vs. MB
+        obs['phot_mask'] = [True, True, True, True, True, True, True, True, True, True, True, True, True, True, False, False, False, 
+        False, False, False, False, False, False, False, False, False, False]
     
     obs['objid'] = objid
     obs = fix_obs(obs)
