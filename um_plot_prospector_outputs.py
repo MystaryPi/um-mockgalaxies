@@ -159,8 +159,8 @@ print("{}".format(outroot))
 sps = get_sps(res)
 
 #obs = (np.load('obs-z3/umobs_'+str(obs_mcmc['objid'])+å'.npz', allow_pickle=True))['obs']
-gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
 
 print('Object ID: ' + str(obs['objid']))
@@ -543,16 +543,21 @@ for i in sorted(output_lbt_mask, reverse=True): # go in reverse order to prevent
     output_lbt = np.delete(output_lbt, i)
     
 # will take in the SFH and the time period over which you want to average
-#np.gradient(input_sfh, input_lbt) #evenly spaced across the time points
+# for each point, you determine its derivative by looking at a timescale SFR away
 def quenching_timescales(x, y, timescale):
-    # Need to also adjust a new x evenly spaced by new timescale
-    x_d = np.arange(x[0],x[-1],timescale)
+    from scipy import interpolate
     
-    # Calculate deriv of y (sfh) with respect to x (lbt) using a specified
-    # step size with respect to x (e.g. 50, 100, 200 Myr)
-    dy_dx = -np.gradient(np.interp(x_d, x, y), timescale)
+    y_interp = interpolate.interp1d(x, y)
+    
+    # Calculate deriv of y (sfh) with respect to x (lbt)
+    dy_dx = np.array([])
+    newx = np.array([])
+    for i,lbtval in enumerate(x):
+        if(lbtval + timescale < x[-1]): #up to upper limit
+            dy_dx = np.append(dy_dx, -(y_interp(lbtval+timescale) - y[i])/timescale)
+            newx = np.append(newx, lbtval) #create a new lbt up to upper limit
 
-    return x_d, dy_dx
+    return newx, dy_dx
     
 x_d_input, y_d_input = quenching_timescales(input_lbt, input_sfh, 0.2)
 x_d_output, y_d_output = quenching_timescales(output_lbt, output_sfh, 0.2)
