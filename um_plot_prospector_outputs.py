@@ -276,7 +276,7 @@ print('Done calculating spectra')
 c = 2.99792458e18
 
 # NORMAL PLOTTING
-fig, ax = plt.subplots(3,1,figsize=(8,12))
+fig, ax = plt.subplots(4,1,figsize=(8,14))
 
 # wphot + wspec both observed
 '''
@@ -559,8 +559,8 @@ def quenching_timescales(x, y, timescale):
 
     return newx, dy_dx
     
-x_d_input, y_d_input = quenching_timescales(input_lbt, input_sfh, 0.2)
-x_d_output, y_d_output = quenching_timescales(output_lbt, output_sfh, 0.2)
+x_d_input, y_d_input = quenching_timescales(input_lbt, input_sfh, 0.1)
+x_d_output, y_d_output = quenching_timescales(output_lbt, output_sfh, 0.1)
 
 # Use intersect package to determine where derivatives intersect the quenching threshold
 # Finding the max and minimum, then normalizing the threshold 
@@ -599,11 +599,12 @@ ax[2].tick_params(axis='both', which='major', labelsize=10)
 print('Finished derivative plot')
 
 # cumulative mass fraction plot
-#ax[2].fill_between(age_interp, massPercent[:,1], massPercent[:,3], color='grey', alpha=.5)
-#ax[2].plot(age_interp, massPercent[:,2], color='black', lw=1.5)
-#ax[2].set_xlim((tmax+.1,-.1))
-#ax[2].set_ylabel('Cumulative mass fraction')
-#ax[2].set_xlabel('years before observation [Gyr]')
+ax[3].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='grey', alpha=.5)
+ax[3].plot(lbt_interp, massPercent[:,2], color='black', lw=1.5)
+ax[3].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
+ax[3].set_ylabel('Cumulative Mass Fraction')
+ax[3].set_xlabel('Lookback Time [Gyr]')
+
 plt.show()
 # save plot
 fig.tight_layout()
