@@ -140,9 +140,9 @@ if __name__ == "__main__":
         raise(OSError)
 
     ### save instrumental resolution and emission line rest-frame wavelengths in run_params
-    model.params['sigma_v'] = obs['sigma_v']
-    model.params['spec_obs_wave'] = obs['wavelength']
-    model.params['eline_rest_wave'] = info['wave']
+    #model.params['sigma_v'] = obs['sigma_v']
+    #model.params['spec_obs_wave'] = obs['wavelength']
+    #model.params['eline_rest_wave'] = info['wave']
     
     
     # debug mode?

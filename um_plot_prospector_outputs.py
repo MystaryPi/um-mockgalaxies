@@ -398,12 +398,12 @@ allsfrs_interp = np.zeros((flatchain.shape[0], len(lbt_interp))) # this one is i
 allsfrs_interp_age = np.zeros((flatchain.shape[0], len(lbt_interp))) # this one is in age of universe (x-axis = age_interp)
 masscum_interp = np.zeros_like(allsfrs_interp)
 totmasscum_interp = np.zeros_like(allsfrs_interp)
-dt = (lbt_interp - np.insert(lbt_interp,0,0)[:-1]) * 1e9
+dt = ((lbt_interp - np.insert(lbt_interp,0,0)[:-1])) * 1e9
 for i in range(flatchain.shape[0]):
     allsfrs_interp[i,:] = stepInterp(allagebins_lbt[i,:], allsfrs[i,:], lbt_interp)
     allsfrs_interp[i,-1] = 0
-    masscum_interp[i,:] = 1 - (np.cumsum(allsfrs_interp[i,:] * dt) / np.sum(allsfrs_interp[i,:] * dt))
-    totmasscum_interp[i,:] = np.sum(allsfrs_interp[i,:] * dt) - (np.cumsum(allsfrs_interp[i,:] * dt))
+    masscum_interp[i,:] = 1 - (np.cumsum(allsfrs_interp[i,:] * dt) / np.nansum(allsfrs_interp[i,:] * dt))
+    totmasscum_interp[i,:] = np.nansum(allsfrs_interp[i,:] * dt) - (np.cumsum(allsfrs_interp[i,:] * dt))
     
     # now: let's also calculate this in terms of age of universe, not just LBT
     tuniv_thisdraw = cosmo.age(flatchain[i,mod.theta_index['zred']][0]).value
@@ -564,12 +564,27 @@ ax[2].tick_params(axis='both', which='major', labelsize=10)
 
 print('Finished derivative plot')
 
-# cumulative mass fraction plot
+# CUMULATIVE MASS FRACTION
+# t50, t90 - intersection function
+x_t50, y_t50 = intersection_function(lbt_interp, np.full(len(lbt_interp), 0.5), massPercent[:,2])
+x_t90, y_t90 = intersection_function(lbt_interp, np.full(len(lbt_interp), 0.9), massPercent[:,2])
+
+# plot t50, 590
+ax[1].axvline(x_t50[0], linestyle='--', lw=1, color='sienna')
+ax[2].axvline(x_t50[0], linestyle='--', lw=1, color='sienna')
+ax[3].axvline(x_t50[0], linestyle='--', lw=1, color='sienna')
+
+ax[1].axvline(x_t50[0], linestyle='--', lw=1, color='saddlebrown')
+ax[2].axvline(x_t50[0], linestyle='--', lw=1, color='saddlebrown')
+ax[3].axvline(x_t50[0], linestyle='--', lw=1, color='saddlebrown')
+
+# plot mass frac
 ax[3].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='grey', alpha=.5)
 ax[3].plot(lbt_interp, massPercent[:,2], color='black', lw=1.5)
 ax[3].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
 ax[3].set_ylabel('Cumulative Mass Fraction')
 ax[3].set_xlabel('Lookback Time [Gyr]')
+ax[3].set_ylim(0,1)
 
 plt.show()
 # save plot

@@ -249,8 +249,8 @@ for directory_index, directory in enumerate(directory_array):
             for i in range(flatchain.shape[0]):
                 allsfrs_interp[i,:] = stepInterp(allagebins_lbt[i,:], allsfrs[i,:], lbt_interp)
                 allsfrs_interp[i,-1] = 0
-                masscum_interp[i,:] = 1 - (np.cumsum(allsfrs_interp[i,:] * dt) / np.sum(allsfrs_interp[i,:] * dt))
-                totmasscum_interp[i,:] = np.sum(allsfrs_interp[i,:] * dt) - (np.cumsum(allsfrs_interp[i,:] * dt))
+                masscum_interp[i,:] = 1 - (np.cumsum(allsfrs_interp[i,:] * dt) / np.nansum(allsfrs_interp[i,:] * dt))
+                totmasscum_interp[i,:] = np.nansum(allsfrs_interp[i,:] * dt) - (np.cumsum(allsfrs_interp[i,:] * dt))
 
                 # now: let's also calculate this in terms of age of universe, not just LBT
                 tuniv_thisdraw = cosmo.age(flatchain[i,mod.theta_index['zred']][0]).value
@@ -294,6 +294,7 @@ for directory_index, directory in enumerate(directory_array):
             lbt_interp: lookback time of FULL range
             sfh: takes in SFH of FULL range
             '''
+            # Square interpolation - SFR(t1) and SFR(t2) are two snapshots, then for t<(t1+t2)/2 you assume SFR=SFR(t1) and t>(t1+t2)/2 you assume SFR=SFR(t2)
             
             def averageSFR(lbt, sfh, timescale = 0.1):  
                 from numpy import trapz
