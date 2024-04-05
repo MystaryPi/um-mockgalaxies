@@ -159,8 +159,8 @@ print("{}".format(outroot))
 sps = get_sps(res)
 
 #obs = (np.load('obs-z3/umobs_'+str(obs_mcmc['objid'])+å'.npz', allow_pickle=True))['obs']
-gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
 
 print('Object ID: ' + str(obs['objid']))
@@ -574,9 +574,9 @@ ax[1].axvline(x_t50[0], linestyle='--', lw=1, color='sienna')
 ax[2].axvline(x_t50[0], linestyle='--', lw=1, color='sienna')
 ax[3].axvline(x_t50[0], linestyle='--', lw=1, color='sienna')
 
-ax[1].axvline(x_t50[0], linestyle='--', lw=1, color='saddlebrown')
-ax[2].axvline(x_t50[0], linestyle='--', lw=1, color='saddlebrown')
-ax[3].axvline(x_t50[0], linestyle='--', lw=1, color='saddlebrown')
+ax[1].axvline(x_t90[0], linestyle='--', lw=1, color='saddlebrown')
+ax[2].axvline(x_t90[0], linestyle='--', lw=1, color='saddlebrown')
+ax[3].axvline(x_t90[0], linestyle='--', lw=1, color='saddlebrown')
 
 # plot mass frac
 ax[3].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='grey', alpha=.5)

@@ -296,18 +296,29 @@ for directory_index, directory in enumerate(directory_array):
             '''
             # Square interpolation - SFR(t1) and SFR(t2) are two snapshots, then for t<(t1+t2)/2 you assume SFR=SFR(t1) and t>(t1+t2)/2 you assume SFR=SFR(t2)
             
-            def averageSFR(lbt, sfh, timescale = 0.1):  
-                from numpy import trapz
-                # Obtain LBT + area under SFH over chosen range, using trapezoidal method
-                newLBT = np.linspace(0, 0.1, num=300)
-                if(lbt[0] <= lbt[1]): # not reversed
-                    newSFH = np.interp(newLBT, lbt, sfh) # needs to be in positive direction
-                else:
-                    newSFH = np.interp(newLBT, lbt[::-1], sfh[::-1]) # needs to be in positive direction
-
-                return trapz(newSFH, x=newLBT)/0.1
+            def averageSFR(lbt, sfh, timescale):  
+                # SFH * time / total time
+                limited_lbt = np.array([])
+                limited_sfh = np.array([])
                 
-
+                # check if reversed array
+                if(lbt[0] > lbt[1]): 
+                    lbt = lbt[::-1]
+                    sfh = sfh[::-1]
+                
+                for m in range(len(lbt)):
+                    if(lbt[m] <= timescale):
+                        limited_lbt = np.append(limited_lbt, lbt[m])
+                        limited_sfh = np.append(limited_sfh, sfh[m])
+                area_under = 0
+                for n in range(len(limited_lbt)-1):
+                    area_under += ((limited_lbt[n+1]+limited_lbt[n])*0.5 - limited_lbt[n]) * (limited_sfh[n] + limited_sfh[n+1])
+                
+                # add the last value, ends up being 0 if all the way up to 0.1
+                area_under += limited_sfh[-1] * (timescale - limited_lbt[-1])
+                
+                return area_under/timescale
+                
             inputAverageSFR = averageSFR(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, timescale=0.1)
             outputAverageSFR_LE = averageSFR(lbt_interp, sfrPercent[:,1], timescale=0.1)
             outputAverageSFR = averageSFR(lbt_interp, sfrPercent[:,2], timescale=0.1)
