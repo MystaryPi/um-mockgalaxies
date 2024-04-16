@@ -140,11 +140,6 @@ def intersection_function(x, y1, y2):
 def trap(x, y):
         return np.sum((x[1:] - x[:-1]) * (y[1:] + y[:-1]))/2. 
 
-
-'''
-    CODING NOTE FOR MICHELLE: never hard-code values like this! it will break unexpectedly.
-    it's much better + more general to pull these values from the results file, which I implemented below.
-        '''
 # # set some params
 # tflex=2
 # nflex=5
@@ -216,10 +211,12 @@ imax = np.argmax(res['lnprobability'])
 theta_max = res['chain'][imax, :].copy()
 
 print('MAP value: {}'.format(theta_max))
+'''
 fig, axes = plt.subplots(len(theta_max), len(theta_max), figsize=(15,15))
 axes = um_cornerplot.allcorner(res['chain'].T, mod.theta_labels(), axes, show_titles=True, 
     span=[0.997]*len(mod.theta_labels()), weights=res.get("weights", None), 
     label_kwargs={"fontsize": 8}, tick_kwargs={"labelsize": 6}, title_kwargs={'fontsize':11}, truths=truth_array)
+
 
 if not os.path.exists(plotdir+'corner'):
     os.mkdir(plotdir+'corner')    
@@ -227,6 +224,7 @@ fig.savefig(plotdir+'corner/'+filename, bbox_inches='tight')
 print('saved cornerplot to '+plotdir+filename)  
 plt.close(fig)    
 print('Made cornerplot')
+'''
 
 ##############################################################################  
 
@@ -569,10 +567,6 @@ print('Finished derivative plot')
 x_rec_t50, y = intersection_function(lbt_interp, np.full(len(lbt_interp), 0.5), massPercent[:,2])
 x_rec_t90, y = intersection_function(lbt_interp, np.full(len(lbt_interp), 0.9), massPercent[:,2])
 
-# plot t50, 590
-ax[3].axvline(x_rec_t50[0], linestyle='--', lw=1, color='sienna')
-ax[3].axvline(x_rec_t90[0], linestyle='--', lw=1, color='saddlebrown')
-
 # plot mass frac
 ax[3].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='grey', alpha=.5)
 ax[3].plot(lbt_interp, massPercent[:,2], color='black', lw=1.5, label='Output SFH')
@@ -596,8 +590,20 @@ x_in_t50, y = intersection_function(input_massFracLBT, np.full(len(input_massFra
 x_in_t90, y = intersection_function(input_massFracLBT, np.full(len(input_massFracLBT), 0.9), input_massFracSFR/input_massFracSFR[-1])
 
 # plot t50, 590
-ax[3].axvline(x_in_t50[0], linestyle='--', lw=1, color='skyblue')
-ax[3].axvline(x_in_t90[0], linestyle='--', lw=1, color='deepskyblue')
+ax[3].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='#734a4a', label='Input t50/t90')
+ax[3].axvline(x_in_t90[0], linestyle='dotted', lw=1, color='#734a4a')
+ax[3].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='#5a1894', label='Output t50/t90')
+ax[3].axvline(x_rec_t90[0], linestyle='dotted', lw=1, color='#5a1894')
+
+ax[1].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='#734a4a', label='Input t50/t90')
+ax[1].axvline(x_in_t90[0], linestyle='dotted', lw=1, color='#734a4a')
+ax[1].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='#5a1894', label='Output t50/t90')
+ax[1].axvline(x_rec_t90[0], linestyle='dotted', lw=1, color='#5a1894')
+
+ax[2].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='#734a4a', label='Input t50/t90')
+ax[2].axvline(x_in_t90[0], linestyle='dotted', lw=1, color='#734a4a')
+ax[2].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='#5a1894', label='Output t50/t90')
+ax[2].axvline(x_rec_t90[0], linestyle='dotted', lw=1, color='#5a1894')
 
 ax[3].plot(input_massFracLBT, input_massFracSFR/input_massFracSFR[-1], color='blue', lw=1.5, label='Input SFH')
 ax[3].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)

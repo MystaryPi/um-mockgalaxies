@@ -166,8 +166,8 @@ for directory_index, directory in enumerate(directory_array):
             res, obs, mod = results_from("{}".format(mcmcfile), dangerous=True)
             print('----- Making plots for '+str(obs['objid']) + ' in ' + str(directory) + ' -----')
             
-            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
             sps = get_sps(res)
         
@@ -310,10 +310,19 @@ for directory_index, directory in enumerate(directory_array):
             counter += 1
          
 # Below this point is plotting
+import matplotlib.colors as colors
 fig, ax = plt.subplots(1,2,figsize=(9,5))
+divnorm = colors.TwoSlopeNorm(vmin=-0.2, vcenter=0, vmax=0.8)
 
-# MB plot
-scatter0 = ax[0].scatter(logmass_array[0],zred_array[0], c=dust2_array[0], ec='k')
+counter = 0 # MB plot + NO MB plot
+for ax in ax.flat:
+    im = ax.scatter(logmass_array[counter],zred_array[counter], c=dust2_array[counter], ec='k', vmin=-0.2, vmax=0.8)
+    counter += 1 
+fig.subplots_adjust(right=0.8)
+cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+fig.colorbar(im, cax=cbar_ax, label="Difference in dust2", cmap='bwr', orientation="vertical", norm=divnorm) 
+
+# prettify the plot
 ax[0].set_title("Broad+MB")
 ax[0].set_ylabel("Difference in redshift")
 ax[0].axline((0, 0), slope=0, ls='--', color='black', lw=2)
@@ -321,8 +330,6 @@ ax[0].axvline(0, ls='--', color='black', lw=2)
 #ax[0].set_xlim(spsdict['zred']-0.35,spsdict['zred']+0.35)
 ax[0].set_xlabel(r'Difference in $log M_{stellar}$ (log $M_{sun}$)')
 
-# NO MB plot
-scatter1 = ax[1].scatter(logmass_array[1],zred_array[1], c=dust2_array[1], ec='k')
 ax[1].set_title("Broad only")
 ax[1].set_ylabel("Difference in redshift")
 ax[1].axline((0, 0), slope=0, ls='--', color='black', lw=2)
@@ -334,12 +341,6 @@ ax[0].set_xlim((-0.3, 0.4))
 ax[0].set_ylim((-0.5, 0.2))
 ax[1].set_xlim((-0.3, 0.4))
 ax[1].set_ylim((-0.5, 0.2))
-
-# create legend with the colors
-plt.colorbar(scatter1, ax=ax[1], label="Difference in dust2", orientation="vertical") 
-#legend0 = ax[0].legend(*scatter0.legend_elements(num=5),
-#                    loc="best", title="Difference in dust2")
-#ax[0].add_artist(legend0)
 
 plt.tight_layout()
 
