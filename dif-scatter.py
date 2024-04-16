@@ -166,8 +166,8 @@ for directory_index, directory in enumerate(directory_array):
             res, obs, mod = results_from("{}".format(mcmcfile), dangerous=True)
             print('----- Making plots for '+str(obs['objid']) + ' in ' + str(directory) + ' -----')
             
-            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
             sps = get_sps(res)
         
@@ -311,16 +311,8 @@ for directory_index, directory in enumerate(directory_array):
          
 # Below this point is plotting
 import matplotlib.colors as colors
+from matplotlib import cm
 fig, ax = plt.subplots(1,2,figsize=(9,5))
-divnorm = colors.TwoSlopeNorm(vmin=-0.2, vcenter=0, vmax=0.8)
-
-counter = 0 # MB plot + NO MB plot
-for ax in ax.flat:
-    im = ax.scatter(logmass_array[counter],zred_array[counter], c=dust2_array[counter], ec='k', vmin=-0.2, vmax=0.8)
-    counter += 1 
-fig.subplots_adjust(right=0.8)
-cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
-fig.colorbar(im, cax=cbar_ax, label="Difference in dust2", cmap='bwr', orientation="vertical", norm=divnorm) 
 
 # prettify the plot
 ax[0].set_title("Broad+MB")
@@ -342,7 +334,21 @@ ax[0].set_ylim((-0.5, 0.2))
 ax[1].set_xlim((-0.3, 0.4))
 ax[1].set_ylim((-0.5, 0.2))
 
+divnorm = colors.TwoSlopeNorm(vmin=-0.2, vcenter=0, vmax=0.8)
+
+counter = 0 # MB plot + NO MB plot
+for ax in ax.flat:
+    im = ax.scatter(logmass_array[counter],zred_array[counter], c=dust2_array[counter], ec='k', norm=divnorm, cmap='bwr')
+    counter += 1 
+    
 plt.tight_layout()
+fig.subplots_adjust(right=0.8)
+cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+fig.colorbar(mappable=cm.ScalarMappable(norm=divnorm, cmap='bwr'), cax=cbar_ax, label="Difference in dust2", orientation="vertical") 
+cbar_ax.set_yscale("linear")
+
+
+
 
 '''
 # SFR inst - scatter - TBD
@@ -360,7 +366,6 @@ ax[3,1].set_xscale('log')
 ax[3,1].set_yscale('log')
 '''
 
-
 plt.show()
 
 # make sure plot directory exists
@@ -368,7 +373,7 @@ if not os.path.exists(plotdir):
     os.mkdir(plotdir)
 
 counter=0
-filename = 'dif_{}_z3.pdf' #defines filename for all objects
+filename = 'dif_{}_z1.pdf' #defines filename for all objects
 while os.path.isfile(plotdir+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made
