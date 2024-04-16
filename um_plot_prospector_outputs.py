@@ -566,23 +566,43 @@ print('Finished derivative plot')
 
 # CUMULATIVE MASS FRACTION
 # t50, t90 - intersection function
-x_t50, y_t50 = intersection_function(lbt_interp, np.full(len(lbt_interp), 0.5), massPercent[:,2])
-x_t90, y_t90 = intersection_function(lbt_interp, np.full(len(lbt_interp), 0.9), massPercent[:,2])
+x_rec_t50, y = intersection_function(lbt_interp, np.full(len(lbt_interp), 0.5), massPercent[:,2])
+x_rec_t90, y = intersection_function(lbt_interp, np.full(len(lbt_interp), 0.9), massPercent[:,2])
 
 # plot t50, 590
-ax[1].axvline(x_t50[0], linestyle='--', lw=1, color='sienna')
-ax[2].axvline(x_t50[0], linestyle='--', lw=1, color='sienna')
-ax[3].axvline(x_t50[0], linestyle='--', lw=1, color='sienna')
-
-ax[1].axvline(x_t90[0], linestyle='--', lw=1, color='saddlebrown')
-ax[2].axvline(x_t90[0], linestyle='--', lw=1, color='saddlebrown')
-ax[3].axvline(x_t90[0], linestyle='--', lw=1, color='saddlebrown')
+ax[3].axvline(x_rec_t50[0], linestyle='--', lw=1, color='sienna')
+ax[3].axvline(x_rec_t90[0], linestyle='--', lw=1, color='saddlebrown')
 
 # plot mass frac
 ax[3].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='grey', alpha=.5)
-ax[3].plot(lbt_interp, massPercent[:,2], color='black', lw=1.5)
+ax[3].plot(lbt_interp, massPercent[:,2], color='black', lw=1.5, label='Output SFH')
+# also need to find input oof
+# Square interpolation - SFR(t1) and SFR(t2) are two snapshots, then for t<(t1+t2)/2 you assume SFR=SFR(t1) and t>(t1+t2)/2 you assume SFR=SFR(t2)
+input_massFracSFR = np.array([])
+input_massFracLBT = np.array([])
+current_input_LBT = cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value
+for n in range(len(um_sfh)-1):
+    input_massFracLBT = np.append(input_massFracLBT, current_input_LBT[n])
+    input_massFracLBT = np.append(input_massFracLBT, current_input_LBT[n]-((current_input_LBT[n]-current_input_LBT[n+1])/2)) # need to add halfway point
+    if(len(input_massFracSFR) == 0):
+        input_massFracSFR = np.append(input_massFracSFR, um_sfh[n])
+    else:
+        input_massFracSFR = np.append(input_massFracSFR, input_massFracSFR[-1] + um_sfh[n])
+    
+    input_massFracSFR = np.append(input_massFracSFR, input_massFracSFR[-1]+um_sfh[n+1])
+
+# t50, t90 - intersection function
+x_in_t50, y = intersection_function(input_massFracLBT, np.full(len(input_massFracLBT), 0.5), input_massFracSFR/input_massFracSFR[-1])
+x_in_t90, y = intersection_function(input_massFracLBT, np.full(len(input_massFracLBT), 0.9), input_massFracSFR/input_massFracSFR[-1])
+
+# plot t50, 590
+ax[3].axvline(x_in_t50[0], linestyle='--', lw=1, color='skyblue')
+ax[3].axvline(x_in_t90[0], linestyle='--', lw=1, color='deepskyblue')
+
+ax[3].plot(input_massFracLBT, input_massFracSFR/input_massFracSFR[-1], color='blue', lw=1.5, label='Input SFH')
 ax[3].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
 ax[3].set_ylabel('Cumulative Mass Fraction')
+ax[3].legend()
 ax[3].set_xlabel('Lookback Time [Gyr]')
 ax[3].set_ylim(0,1)
 

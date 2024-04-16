@@ -505,17 +505,26 @@ for outroot_index, outroot in enumerate(outroot_array):
         output_sfh = np.delete(output_sfh, i)
         output_lbt = np.delete(output_lbt, i)
 
-    lbtLimit = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)[0]
-    output_lbt_mask = [i for i, n in enumerate(output_lbt) if n > lbtLimit]
-    for i in sorted(output_lbt_mask, reverse=True): # go in reverse order to prevent indexing error
-        output_sfh = np.delete(output_sfh, i)
-        output_lbt = np.delete(output_lbt, i)
+    # will take in the SFH and the time period over which you want to average
+    # for each point, you determine its derivative by looking at a timescale SFR away
+    def quenching_timescales(x, y, timescale):
+        from scipy import interpolate
+    
+        y_interp = interpolate.interp1d(x, y)
+    
+        # Calculate deriv of y (sfh) with respect to x (lbt)
+        dy_dx = np.array([])
+        newx = np.array([])
+        for i,lbtval in enumerate(x):
+            if(lbtval + timescale < x[-1]): #up to upper limit
+                dy_dx = np.append(dy_dx, -(y_interp(lbtval+timescale) - y[i])/timescale)
+                newx = np.append(newx, lbtval) #create a new lbt up to upper limit
 
-    # Find derivatives of input + output SFH, age is adjusted b/c now difference between points
-    y_d_input = -np.diff(input_sfh) / np.diff(input_lbt) 
-    y_d_output = -np.diff(output_sfh) / np.diff(output_lbt)
-    x_d_input = (np.array(input_lbt)[:-1] + np.array(input_lbt)[1:]) / 2
-    x_d_output = (np.array(output_lbt)[:-1] + np.array(output_lbt)[1:]) / 2
+        return newx, dy_dx
+    
+    x_d_input, y_d_input = quenching_timescales(input_lbt, input_sfh, 0.1)
+    x_d_output, y_d_output = quenching_timescales(output_lbt, output_sfh, 0.1)
+    
 
     # Use intersect package to determine where derivatives intersect the quenching threshold
     quenching_threshhold = -np.abs(max(input_sfh)-min(input_sfh)/0.5) #originally -500
