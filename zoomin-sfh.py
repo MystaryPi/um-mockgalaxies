@@ -181,8 +181,6 @@ outroot_array = [outroot_mb, outroot_nomb]
 # make sure plot directory exits
 if not os.path.exists(plotdir):
     os.mkdir(plotdir)
-if not os.path.exists(plotdir+'sfh'):
-    os.mkdir(plotdir+'sfh')
     
 #check to see if duplicates exist
 counter=0

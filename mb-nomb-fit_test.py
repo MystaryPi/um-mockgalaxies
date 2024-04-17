@@ -182,8 +182,8 @@ for directory_index, directory in enumerate(directory_array):
             #print('Making plots for '+str(mcmcfile))
 
             res, obs, mod = results_from("{}".format(mcmcfile), dangerous=True)
-            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z2/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z2/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
             sps = get_sps(res)
 
@@ -386,11 +386,23 @@ for directory_index, directory in enumerate(directory_array):
                 output_lbt = np.delete(output_lbt, i)
 
             # Find derivatives of input + output SFH, age is adjusted b/c now difference between points
-            y_d_input = -np.diff(input_sfh) / np.diff(input_lbt) 
-            y_d_output = -np.diff(output_sfh) / np.diff(output_lbt)
-            x_d_input = (np.array(input_lbt)[:-1] + np.array(input_lbt)[1:]) / 2
-            x_d_output = (np.array(output_lbt)[:-1] + np.array(output_lbt)[1:]) / 2
-        
+            def quenching_timescales(x, y, timescale):
+                from scipy import interpolate
+    
+                y_interp = interpolate.interp1d(x, y)
+    
+                # Calculate deriv of y (sfh) with respect to x (lbt)
+                dy_dx = np.array([])
+                newx = np.array([])
+                for i,lbtval in enumerate(x):
+                    if(lbtval + (timescale/2) < x[-1] and lbtval - (timescale/2) > x[0]): #up to upper limit
+                        dy_dx = np.append(dy_dx, -(y_interp(lbtval+(timescale/2)) - y_interp(lbtval - (timescale/2)))/timescale)
+                        newx = np.append(newx, lbtval) #create a new lbt up to upper limit
+
+                return newx, dy_dx
+            x_d_input, y_d_input = quenching_timescales(input_lbt, input_sfh, 0.1)
+            x_d_output, y_d_output = quenching_timescales(output_lbt, output_sfh, 0.1)
+            
 
             # Use intersect package to determine where derivatives intersect the quenching threshold
             # Finding the max and minimum, then normalizing the threshold 

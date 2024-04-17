@@ -371,7 +371,7 @@ for outroot_index, outroot in enumerate(outroot_array):
 
     ######## SFH PLOTTING in LBT ##########
     # Convert x-axis from age to LBT
-    ax[0, 0].plot(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, label='True SFH' if outroot_index == 0 else "", color='black', lw=1.7, marker="o") # INPUT SFH
+    ax[0, 0].plot(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, label='Input SFH' if outroot_index == 0 else "", color='black', lw=1.7, marker="o") # INPUT SFH
     if(outroot_index == 0): # medium band
         ax[0, 1].plot(lbt_interp, sfrPercent[:,2], color='maroon', lw=1.5, label='Broad+MB SFH fit') 
         ax[0, 1].fill_between(lbt_interp, sfrPercent[:,1], sfrPercent[:,3], color='maroon', alpha=.3)
@@ -415,48 +415,69 @@ for outroot_index, outroot in enumerate(outroot_array):
         dy_dx = np.array([])
         newx = np.array([])
         for i,lbtval in enumerate(x):
-            if(lbtval + timescale < x[-1]): #up to upper limit
-                dy_dx = np.append(dy_dx, -(y_interp(lbtval+timescale) - y[i])/timescale)
+            if(lbtval + (timescale/2) < x[-1] and lbtval - (timescale/2) > x[0]): #up to upper limit
+                dy_dx = np.append(dy_dx, -(y_interp(lbtval+(timescale/2)) - y_interp(lbtval - (timescale/2)))/timescale)
                 newx = np.append(newx, lbtval) #create a new lbt up to upper limit
 
         return newx, dy_dx
     
+    quenching_threshhold = -100 #originally -500
+    
     x_d_input, y_d_input = quenching_timescales(input_lbt, input_sfh, 0.1)
     x_d_output, y_d_output = quenching_timescales(output_lbt, output_sfh, 0.1)
     
-
     # Use intersect package to determine where derivatives intersect the quenching threshold
     quenching_threshhold = -100 #originally -500
     x_i, y_i = intersection_function(x_d_input, np.full(len(x_d_input), quenching_threshhold), y_d_input)
     x_o, y_o = intersection_function(x_d_output, np.full(len(x_d_output), quenching_threshhold), y_d_output)
     
+    # Previous quenching method
+    y_prev_input = -np.diff(input_sfh) / np.diff(input_lbt) 
+    y_prev_output = -np.diff(output_sfh) / np.diff(output_lbt)
+    x_prev_input = (np.array(input_lbt)[:-1] + np.array(input_lbt)[1:]) / 2
+    x_prev_output = (np.array(output_lbt)[:-1] + np.array(output_lbt)[1:]) / 2
+    inquench, y_i = intersection_function(x_prev_input, np.full(len(x_prev_input), quenching_threshhold), y_prev_input)
+    outquench, y_o = intersection_function(x_prev_output, np.full(len(x_prev_output), quenching_threshhold), y_prev_output)
+
+    inquench_old = inquench[0]
+    outquench_old = outquench[0]
+    
     # Plot derivative for input + output SFH, + quenching threshold from Wren's paper
     # Plot vertical lines for the quench time on the SFH plot
     
     if len(x_i) != 0:
-        ax[1,0].plot(x_d_input, y_d_input, '-o', color='black', lw=1.5, label='Input SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_i[0])))[2:-2] + ' Gyr)' if outroot_index == 0 else "")
-        ax[0,0].axvline(x_i[0], linestyle='--', lw=1, color='black')
-        ax[1,0].axvline(x_i[0], linestyle='--', lw=1, color='black')
-        ax[2,0].axvline(x_i[0], linestyle='--', lw=1, color='black')
+        ax[1,0].plot(x_d_input, y_d_input, '-o', color='black', lw=1.5, label='Quench time: ' + str(list(map('{0:.3f}'.format, x_i[0])))[2:-2] + ' Gyr' if outroot_index == 0 else "")
+        ax[0,0].axvline(x_i[0], linestyle='--', lw=1.7, color='black')
+        ax[1,0].axvline(x_i[0], linestyle='--', lw=1.7, color='black')
+        ax[2,0].axvline(x_i[0], linestyle='--', lw=1.7, color='black')
+        ax[1,0].axvline(inquench_old, linestyle='--', lw=1.7, color='gray', alpha=0.5, label='Previous quench time result: ' + str(list(map('{0:.3f}'.format, inquench_old)))[2:-2] + ' Gyr' if outroot_index == 0 else "")
+        ax[0,0].axvline(inquench_old, linestyle='--', lw=1.7, color='gray', alpha=0.5)
+        ax[2,0].axvline(inquench_old, linestyle='--', lw=1.7, color='gray', alpha=0.5)
     else:
-        ax[1,0].plot(x_d_input, y_d_input, '-o', color='black', lw=1.5, label='Input SFH time derivative (does not pass quenching threshold)')
+        ax[1,0].plot(x_d_input, y_d_input, '-o', color='black', lw=1.5, label='Input does not pass quenching threshold')
         
     if(outroot_index == 0):
         if len(x_o != 0):
-            ax[1,1].plot(x_d_output, y_d_output, '-o', color='maroon', lw=1.5, label='Broad+MB SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_o[0])))[2:-2] + ' Gyr)')
-            ax[0,1].axvline(x_o[0], linestyle='--', lw=1, color='maroon')
-            ax[1,1].axvline(x_o[0], linestyle='--', lw=1, color='maroon')
-            ax[2,1].axvline(x_o[0], linestyle='--', lw=1, color='maroon')
+            ax[1,1].plot(x_d_output, y_d_output, '-o', color='maroon', lw=1.5, label='Quench time: ' + str(list(map('{0:.3f}'.format, x_o[0])))[2:-2] + ' Gyr')
+            ax[0,1].axvline(x_o[0], linestyle='--', lw=1.7, color='maroon')
+            ax[1,1].axvline(x_o[0], linestyle='--', lw=1.7, color='maroon')
+            ax[2,1].axvline(x_o[0], linestyle='--', lw=1.7, color='maroon')
+            ax[1,1].axvline(outquench_old, linestyle='--', lw=1.7, color='maroon', alpha=0.5, label='Previous quench time result: ' + str(list(map('{0:.3f}'.format, inquench_old)))[2:-2] + ' Gyr')
+            ax[0,1].axvline(outquench_old, linestyle='--', lw=1.7, color='maroon', alpha=0.5)
+            ax[2,1].axvline(outquench_old, linestyle='--', lw=1.7, color='maroon', alpha=0.5)
         else: 
-            ax[1,1].plot(x_d_output, y_d_output, '-o', color='maroon', lw=1.5, label='Broad+MB SFH time derivative (does not pass quenching threshold)')
+            ax[1,1].plot(x_d_output, y_d_output, '-o', color='maroon', lw=1.5, label='Broad+MB does not pass quenching threshold')
     if(outroot_index == 1):
         if len(x_o != 0):
-            ax[1,2].plot(x_d_output, y_d_output, '-o', color='navy', lw=1.5, label='Broad only SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_o[0])))[2:-2] + ' Gyr)')
-            ax[0,2].axvline(x_o[0], linestyle='--', lw=1, color='navy')
-            ax[1,2].axvline(x_o[0], linestyle='--', lw=1, color='navy')
-            ax[2,2].axvline(x_o[0], linestyle='--', lw=1, color='navy')
+            ax[1,2].plot(x_d_output, y_d_output, '-o', color='navy', lw=1.5, label='Quench time: ' + str(list(map('{0:.3f}'.format, x_o[0])))[2:-2] + ' Gyr')
+            ax[0,2].axvline(x_o[0], linestyle='--', lw=1.7, color='navy')
+            ax[1,2].axvline(x_o[0], linestyle='--', lw=1.7, color='navy')
+            ax[2,2].axvline(x_o[0], linestyle='--', lw=1.7, color='navy')
+            ax[1,2].axvline(outquench_old, linestyle='--', lw=1.7, color='navy', alpha=0.5, label='Previous quench time result: ' + str(list(map('{0:.3f}'.format, outquench_old)))[2:-2] + ' Gyr')
+            ax[0,2].axvline(outquench_old, linestyle='--', lw=1.7, color='navy', alpha=0.5)
+            ax[2,2].axvline(outquench_old, linestyle='--', lw=1.7, color='navy', alpha=0.5)
         else: 
-            ax[1,2].plot(x_d_output, y_d_output, '-o', color='navy', lw=1.5, label='Broad only SFH time derivative (does not pass quenching threshold)')
+            ax[1,2].plot(x_d_output, y_d_output, '-o', color='navy', lw=1.5, label='Broad only does not pass quenching threshold')
     
     # CUMULATIVE MASS FRACTION
     # t50, t90 - intersection function
@@ -466,22 +487,22 @@ for outroot_index, outroot in enumerate(outroot_array):
     # plot mass frac
     if(outroot_index == 0):
         ax[2,1].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='maroon', alpha=.3)
-        ax[2,1].plot(lbt_interp, massPercent[:,2], color='maroon', lw=1.5, label='Broad+MB cumulative mass fraction')
-        ax[2,1].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='#b44a39', label='Broad+MB t50/t90')
-        ax[2,1].axvline(x_rec_t90[0], linestyle='dotted', lw=1, color='#b44a39')
-        ax[0,1].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='#b44a39')
-        ax[0,1].axvline(x_rec_t90[0], linestyle='dotted', lw=1, color='#b44a39')
-        ax[1,1].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='#b44a39')
-        ax[1,1].axvline(x_rec_t90[0], linestyle='dotted', lw=1, color='#b44a39')
+        ax[2,1].plot(lbt_interp, massPercent[:,2], color='maroon', lw=1.5)
+        ax[2,1].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#b44a39', label='Broad+MB t50/t90')
+        ax[2,1].axvline(x_rec_t90[0], linestyle='dotted', lw=1.1, color='#b44a39')
+        ax[0,1].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#b44a39')
+        ax[0,1].axvline(x_rec_t90[0], linestyle='dotted', lw=1.1, color='#b44a39')
+        ax[1,1].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#b44a39')
+        ax[1,1].axvline(x_rec_t90[0], linestyle='dotted', lw=1.1, color='#b44a39')
     if(outroot_index == 1):
         ax[2,2].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='navy', alpha=.3)
-        ax[2,2].plot(lbt_interp, massPercent[:,2], color='navy', lw=1.5, label='Broad only cumulative mass fraction')
-        ax[2,2].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='#5273ee', label='Broad only t50/t90')
-        ax[2,2].axvline(x_rec_t90[0], linestyle='dotted', lw=1, color='#5273ee')
-        ax[0,2].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='#5273ee')
-        ax[0,2].axvline(x_rec_t90[0], linestyle='dotted', lw=1, color='#5273ee')
-        ax[1,2].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='#5273ee')
-        ax[1,2].axvline(x_rec_t90[0], linestyle='dotted', lw=1, color='#5273ee')
+        ax[2,2].plot(lbt_interp, massPercent[:,2], color='navy', lw=1.5)
+        ax[2,2].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#5273ee', label='Broad only t50/t90')
+        ax[2,2].axvline(x_rec_t90[0], linestyle='dotted', lw=1.1, color='#5273ee')
+        ax[0,2].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#5273ee')
+        ax[0,2].axvline(x_rec_t90[0], linestyle='dotted', lw=1.1, color='#5273ee')
+        ax[1,2].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#5273ee')
+        ax[1,2].axvline(x_rec_t90[0], linestyle='dotted', lw=1.1, color='#5273ee')
     
     print("For loop completed")
 
@@ -504,38 +525,39 @@ for n in range(len(um_sfh)-1):
 x_in_t50, y = intersection_function(input_massFracLBT, np.full(len(input_massFracLBT), 0.5), input_massFracSFR/input_massFracSFR[-1])
 x_in_t90, y = intersection_function(input_massFracLBT, np.full(len(input_massFracLBT), 0.9), input_massFracSFR/input_massFracSFR[-1])
 
-ax[2,0].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='#734a4a', label='Input t50/t90')
-ax[2,0].axvline(x_in_t90[0], linestyle='dotted', lw=1, color='#734a4a')
-ax[1,0].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='#734a4a', label='Input t50/t90')
-ax[1,0].axvline(x_in_t90[0], linestyle='dotted', lw=1, color='#734a4a')
-ax[0,0].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='#734a4a', label='Input t50/t90')
-ax[0,0].axvline(x_in_t90[0], linestyle='dotted', lw=1, color='#734a4a')
+ax[2,0].axvline(x_in_t50[0], linestyle='dotted', lw=1.1, color='#734a4a', label='Input t50/t90')
+ax[2,0].axvline(x_in_t90[0], linestyle='dotted', lw=1.1, color='#734a4a')
+ax[1,0].axvline(x_in_t50[0], linestyle='dotted', lw=1.1, color='#734a4a')
+ax[1,0].axvline(x_in_t90[0], linestyle='dotted', lw=1.1, color='#734a4a')
+ax[0,0].axvline(x_in_t50[0], linestyle='dotted', lw=1.1, color='#734a4a')
+ax[0,0].axvline(x_in_t90[0], linestyle='dotted', lw=1.1, color='#734a4a')
 
-ax[2,0].plot(input_massFracLBT, input_massFracSFR/input_massFracSFR[-1], color='black', lw=1.5, label='Input SFH')
+ax[2,0].plot(input_massFracLBT, input_massFracSFR/input_massFracSFR[-1], color='black', lw=1.5)
 
 k = 0
 while k < 3:
     ax[2,k].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
-    ax[2,k].set_ylabel('Cumulative Mass Fraction')
-    ax[2,k].legend(fontsize=7)
-    ax[2,k].set_xlabel('Lookback Time [Gyr]')
+    ax[2,k].set_ylabel('Cumulative Mass Fraction', fontsize=11)
+    ax[2,k].legend(fontsize=11)
+    ax[2,k].set_xlabel('Lookback Time [Gyr]', fontsize=11)
     ax[2,k].set_ylim(0,1)
 
     ax[0,k].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
     ax[0,k].set_yscale('log')
-    ax[0,k].legend(loc='best', fontsize=7)
-    ax[0,k].tick_params(axis='both', which='major', labelsize=7)
-    ax[0,k].set_ylabel('SFR [' + r'$M_{\odot} /yr$' + ']', fontsize=9)
+    ax[0,k].set_ylim(1e-3,1e3)
+    ax[0,k].legend(loc='best', fontsize=11)
+    ax[0,k].tick_params(axis='both', which='major', labelsize=9)
+    ax[0,k].set_ylabel('SFR [' + r'$M_{\odot} /yr$' + ']', fontsize=11)
     #ax[1].set_xlabel('years before observation [Gyr]')
-    ax[0,k].set_xlabel('Lookback Time [Gyr]', fontsize=9)
+    ax[0,k].set_xlabel('Lookback Time [Gyr]', fontsize=11)
 
-    ax[1,k].set_ylabel("SFH Time Derivative " + r'$[M_{\odot} yr^{-2}]$', fontsize=9)
-    ax[1,k].set_xlabel('Lookback Time [Gyr]', fontsize=9)
+    ax[1,k].set_ylabel("SFH Time Derivative " + r'$[M_{\odot} yr^{-2}]$', fontsize=11)
+    ax[1,k].set_xlabel('Lookback Time [Gyr]', fontsize=11)
     ax[1,k].axhline(quenching_threshhold, linestyle='--', color='black', label='Normalized quenching threshold' if outroot_index == 0 else "") # Quench threshold
     ax[1,k].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
     ax[1,k].set_ylim(-1000, 1000)
-    ax[1,k].legend(loc='best', fontsize=7)
-    ax[1,k].tick_params(axis='both', which='major', labelsize=7)
+    ax[1,k].legend(loc='best', fontsize=11)
+    ax[1,k].tick_params(axis='both', which='major', labelsize=9)
     k += 1
 
 plt.show()
