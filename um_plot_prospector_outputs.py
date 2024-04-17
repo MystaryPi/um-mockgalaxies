@@ -517,8 +517,8 @@ def quenching_timescales(x, y, timescale):
     dy_dx = np.array([])
     newx = np.array([])
     for i,lbtval in enumerate(x):
-        if(lbtval + timescale < x[-1]): #up to upper limit
-            dy_dx = np.append(dy_dx, -(y_interp(lbtval+timescale) - y[i])/timescale)
+        if(lbtval + (timescale/2) < x[-1] and lbtval - (timescale/2) > x[0]): #up to upper limit
+            dy_dx = np.append(dy_dx, -(y_interp(lbtval+(timescale/2)) - y_interp(lbtval - (timescale/2)))/timescale)
             newx = np.append(newx, lbtval) #create a new lbt up to upper limit
 
     return newx, dy_dx
