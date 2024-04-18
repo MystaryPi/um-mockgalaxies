@@ -590,8 +590,7 @@ def massFrac(lbt, sfr):
         totalmass = massFracSFR[-1]
         massFracSFR = massFracSFR/totalmass
     else:
-        last_non_nan_index = non_nan_indices[-1]
-        totalmass = massFracSFR[last_non_nan_index]
+        totalmass = massFracSFR[non_nan_indices[-1]]
         massFracSFR = massFracSFR/totalmass
     
     return massFracLBT, massFracSFR, totalmass
