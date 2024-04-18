@@ -510,6 +510,7 @@ for outroot_index, outroot in enumerate(outroot_array):
 input_massFracSFR = np.array([])
 input_massFracLBT = np.array([])
 current_input_LBT = cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value
+
 for n in range(len(um_sfh)-1):
     input_massFracLBT = np.append(input_massFracLBT, current_input_LBT[n])
     input_massFracLBT = np.append(input_massFracLBT, current_input_LBT[n]-((current_input_LBT[n]-current_input_LBT[n+1])/2)) # need to add halfway point
