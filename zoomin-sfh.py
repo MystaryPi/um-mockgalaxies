@@ -366,19 +366,30 @@ for outroot_index, outroot in enumerate(outroot_array):
     # mass fraction in the last Gyr
     massFrac = 1 - massPercent[lbt_interp==1, 1:].flatten()[::-1]  
 
-    ######## SFH PLOTTING in LBT ##########       
+    ######## SFH PLOTTING in LBT ##########   
+    def truncate(number, digits) -> float:
+        # Improve accuracy with floating point operations, to avoid truncate(16.4, 2) = 16.39 or truncate(-1.13, 2) = -1.12
+        nbDecimals = len(str(number).split('.')[1]) 
+        if nbDecimals <= digits:
+            return number
+        stepper = 10.0 ** digits
+        return math.trunc(stepper * number) / stepper
+            
     # Convert x-axis from age to LBT
     ax[0].step(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, where='mid', label='True SFH' if outroot_index == 0 else "", color='black', lw=1.7, marker="o") # INPUT SFH
+    tlaststring = "tlast_fraction: " + str(truncate(percentiles['tlast_fraction'][1],4))
     
     if(outroot_index == 0): # medium band
         ax[0].axvline(0.1, linestyle='solid', lw=1, color='black', label='0.1 Gyr timescale')
         ax[1].plot(lbt_interp, sfrPercent[:,2], color='maroon', lw=1.5, label='Broad+MB SFH fit') 
         ax[1].fill_between(lbt_interp, sfrPercent[:,1], sfrPercent[:,3], color='maroon', alpha=.3)
         ax[1].axvline(0.1, linestyle='solid', lw=1, color='black', label='0.1 Gyr timescale')
+        ax[1].plot([], [], ' ', label= tlaststring)
     if(outroot_index == 1): # no medium band
         ax[2].plot(lbt_interp, sfrPercent[:,2], color='navy', lw=1.5, label='Broad only SFH fit') 
         ax[2].fill_between(lbt_interp, sfrPercent[:,1], sfrPercent[:,3], color='navy', alpha=.3)
         ax[2].axvline(0.1, linestyle='solid', lw=1, color='black', label='0.1 Gyr timescale')
+        ax[2].plot([], [], ' ', label= tlaststring)
 
     ##### SFR over meaningful timescale #####
     '''
@@ -443,19 +454,13 @@ while k < 3:
 
 # captions next to plot
 colors = ['black', 'maroon', 'navy']
-
-def truncate(number, digits) -> float:
-    # Improve accuracy with floating point operations, to avoid truncate(16.4, 2) = 16.39 or truncate(-1.13, 2) = -1.12
-    nbDecimals = len(str(number).split('.')[1]) 
-    if nbDecimals <= digits:
-        return number
-    stepper = 10.0 ** digits
-    return math.trunc(stepper * number) / stepper
     
 label_counter = 0
 while label_counter < 3:
     label = "Inst. = " + str(truncate(sfh_inst_all[label_counter],3)) + "\nAve. = " + str(truncate(sfh_ave_all[label_counter],3))
     ax[label_counter].text(-0.03, sfh_inst_all[label_counter], label, c=colors[label_counter])
+    ax[label_counter].plot(0.1, sfh_inst_all[label_counter], "*", c=colors[label_counter], marker_size = 20)
+    ax[label_counter].plot(0.1, sfh_ave_all[label_counter], "D", c=colors[label_counter], marker_size = 20)
     label_counter += 1
 
 

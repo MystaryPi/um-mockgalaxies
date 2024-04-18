@@ -73,9 +73,9 @@ run_params = {'verbose':True, #this controls how much output to screen
               'nested_bootstrap': 20,
               'nested_dlogz_init': 0.01,
               'nested_weight_kwargs':{'pfrac': 1.0},
-              'nested_target_neff':20000,
+              'nested_target_n_effective':20000,
               'nested_first_update':{'min_ncall': 20000, 'min_eff': 7.5},
-              'nested_stop_kwargs': {"post_thresh": 0.1}, # might want to lower this to 0.02ish once I get things working
+              #'nested_stop_kwargs': {"post_thresh": 0.1}, # might want to lower this to 0.02ish once I get things working
               # --- nestle parameters ---
               'nestle_npoints': 2000,         # Number of nested sampling live points
               'nestle_method': 'multi',       # Nestle sampling method

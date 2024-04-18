@@ -566,8 +566,8 @@ print('Finished derivative plot')
 # plot mass frac
 # also need to find input oof
 # Square interpolation - SFR(t1) and SFR(t2) are two snapshots, then for t<(t1+t2)/2 you assume SFR=SFR(t1) and t>(t1+t2)/2 you assume SFR=SFR(t2)
-input_massFracSFR = np.array([])
-input_massFracLBT = np.array([])
+
+'''
 current_input_LBT = cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value
 for n in range(len(um_sfh)-1):
     input_massFracLBT = np.append(input_massFracLBT, current_input_LBT[n])
@@ -577,26 +577,40 @@ for n in range(len(um_sfh)-1):
     else:
         input_massFracSFR = np.append(input_massFracSFR, input_massFracSFR[-1] + um_sfh[n]*((current_input_LBT[n]-current_input_LBT[n+1])/2))
     input_massFracSFR = np.append(input_massFracSFR, input_massFracSFR[-1] + um_sfh[n+1]*((current_input_LBT[n]-current_input_LBT[n+1])/2))
+'''
+input_massFracSFR = np.array([])
+trapsfh = um_sfh
+traplbt = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)
+for n in range(len(trapsfh)-1):
+    traplbtprep = np.array([traplbt[n], traplbt[n+1]])
+    trapsfhprep = np.array([trapsfh[n], trapsfh[n+1]])
+    if(len(input_massFracSFR) == 0):
+        input_massFracSFR = np.append(input_massFracSFR, trap(traplbtprep,trapsfhprep))
+    else:
+        input_massFracSFR = np.append(input_massFracSFR, input_massFracSFR[-1] + trap(traplbtprep,trapsfhprep))
     
-ax[3].fill_between(lbt_interp, massPercent[:,0], massPercent[:,2], color='grey', alpha=.5)
-ax[3].plot(lbt_interp,massPercent[:,1],color='black',lw=1.5,label='Output SFH')
-ax[3].plot(input_massFracLBT, input_massFracSFR/input_massFracSFR[-1], color='blue',lw=1.5,label='Input SFH')
+inputmassPercent = np.abs((input_massFracSFR)/input_massFracSFR[len(input_massFracSFR)-1])
+inputmassLBT = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)[1:len(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)]
 
-print("Total input mass from integral: " + str(input_massFracSFR[-1]) + ", known input mass: " + str(obs['logM']))
+ax[3].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='grey', alpha=.5)
+ax[3].plot(lbt_interp,massPercent[:,2],color='black',lw=1.5,label='Output SFH')
+ax[3].plot(inputmassLBT, inputmassPercent, color='blue',lw=1.5,label='Input SFH')
+
+print("Total input mass from integral: " + str(-input_massFracSFR[-1]) + ", known input mass: " + str(obs['logM']))
 print("Total output mass from massPercent: " + str(np.log10(totmassPercent[:,2][0])) + ", known output mass: " + str(percentiles['logmass'][1]))
 
 # t50, t90 - intersection function
-x_in_t50, y = intersection_function(input_massFracLBT, np.full(len(input_massFracSFR/input_massFracSFR[-1]), 0.5), cmf_input_sfh)
-x_in_t95, y = intersection_function(input_massFracLBT, np.full(len(input_massFracSFR/input_massFracSFR[-1]), 0.5), cmf_input_sfh)
+x_in_t50, y = intersection_function(inputmassLBT, np.full(len(inputmassPercent), 0.5), inputmassPercent)
+x_in_t95, y = intersection_function(inputmassLBT, np.full(len(inputmassPercent), 0.95), inputmassPercent)
 
 # t50, t90 - intersection function
-x_rec_t50, y = intersection_function(lbt_interp, np.full(len(massPercent[:,2]), 0.5), cmf_output_sfh)
-x_rec_t95, y = intersection_function(lbt_interp, np.full(len(massPercent[:,2]), 0.95), cmf_output_sfh)
+x_rec_t50, y = intersection_function(lbt_interp, np.full(len(massPercent[:,2]), 0.5), massPercent[:,2])
+x_rec_t95, y = intersection_function(lbt_interp, np.full(len(massPercent[:,2]), 0.95), massPercent[:,2])
 
 # plot t50, 590
-ax[3].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='blue', label='Input t50/t95')
+ax[3].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='blue')
 ax[3].axvline(x_in_t95[0], linestyle='dotted', lw=1, color='blue')
-ax[3].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='black', label='Output t50/t95')
+ax[3].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='black')
 ax[3].axvline(x_rec_t95[0], linestyle='dotted', lw=1, color='black')
 
 ax[1].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='blue')
