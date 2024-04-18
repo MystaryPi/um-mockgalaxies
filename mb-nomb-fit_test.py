@@ -432,13 +432,13 @@ for directory_index, directory in enumerate(directory_array):
          
     # PLOT THE VIOLIN PLOTS (zred, dust2, dust_index - INPUT is same!!!)
     if(directory_index == 0): # medium bands
-        ax[1,1].hist(zred_array, bins='auto', range=[spsdict['zred']-0.35,spsdict['zred']+0.35], color='maroon', alpha=0.5)
-        ax[2,0].hist(dust2_array, bins='auto', range=[0.0,1.0], color='maroon', alpha=0.5)
-        ax[2,1].hist(dust_index_array, bins='auto', range=[-1.0,0.5], color='maroon', alpha=0.5)
+        _, bins_zred, _ = ax[1,1].hist(zred_array, bins=15, range=[spsdict['zred']-0.35,spsdict['zred']+0.35], color='maroon', alpha=0.5)
+        _, bins_dust2, _ = ax[2,0].hist(dust2_array, bins=15, range=[0.0,1.0], color='maroon', alpha=0.5)
+        _, bins_dust_index, _ = ax[2,1].hist(dust_index_array, bins='auto', range=[-1.0,0.5], color='maroon', alpha=0.5)
     if(directory_index == 1): # no medium bands
-        ax[1,1].hist(zred_array, bins='auto', range=[spsdict['zred']-0.35,spsdict['zred']+0.35], color='navy', alpha=0.5)
-        ax[2,0].hist(dust2_array, bins='auto', range=[0.0,1.0], color='navy', alpha=0.5)
-        ax[2,1].hist(dust_index_array, bins='auto', range=[-1.0,0.5], color='navy', alpha=0.5)
+        ax[1,1].hist(zred_array, bins=bins_zred, range=[spsdict['zred']-0.35,spsdict['zred']+0.35], color='navy', alpha=0.5)
+        ax[2,0].hist(dust2_array, bins=bins_dust2, range=[0.0,1.0], color='navy', alpha=0.5)
+        ax[2,1].hist(dust_index_array, bins=bins_dust_index, range=[-1.0,0.5], color='navy', alpha=0.5)
     
 # Below this point is just scaling
 #ZRED - hist

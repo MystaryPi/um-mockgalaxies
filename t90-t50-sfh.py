@@ -182,8 +182,7 @@ outroot_array = [outroot_mb, outroot_nomb]
 # make sure plot directory exits
 if not os.path.exists(plotdir):
     os.mkdir(plotdir)
-if not os.path.exists(plotdir+'sfh'):
-    os.mkdir(plotdir+'sfh')
+
     
 #check to see if duplicates exist
 counter=0
@@ -462,7 +461,7 @@ for outroot_index, outroot in enumerate(outroot_array):
             ax[0,1].axvline(x_o[0], linestyle='--', lw=1.7, color='maroon')
             ax[1,1].axvline(x_o[0], linestyle='--', lw=1.7, color='maroon')
             ax[2,1].axvline(x_o[0], linestyle='--', lw=1.7, color='maroon')
-            ax[1,1].axvline(outquench_old, linestyle='--', lw=1.7, color='maroon', alpha=0.5, label='Previous quench time result: ' + str(list(map('{0:.3f}'.format, inquench_old)))[2:-2] + ' Gyr')
+            ax[1,1].axvline(outquench_old, linestyle='--', lw=1.7, color='maroon', alpha=0.5, label='Previous quench time result: ' + str(list(map('{0:.3f}'.format, outquench_old)))[2:-2] + ' Gyr')
             ax[0,1].axvline(outquench_old, linestyle='--', lw=1.7, color='maroon', alpha=0.5)
             ax[2,1].axvline(outquench_old, linestyle='--', lw=1.7, color='maroon', alpha=0.5)
         else: 

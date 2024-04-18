@@ -563,49 +563,75 @@ ax[2].tick_params(axis='both', which='major', labelsize=10)
 print('Finished derivative plot')
 
 # CUMULATIVE MASS FRACTION
-# t50, t90 - intersection function
-x_rec_t50, y = intersection_function(lbt_interp, np.full(len(lbt_interp), 0.5), massPercent[:,2])
-x_rec_t90, y = intersection_function(lbt_interp, np.full(len(lbt_interp), 0.9), massPercent[:,2])
-
 # plot mass frac
-ax[3].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='grey', alpha=.5)
-ax[3].plot(lbt_interp, massPercent[:,2], color='black', lw=1.5, label='Output SFH')
 # also need to find input oof
 # Square interpolation - SFR(t1) and SFR(t2) are two snapshots, then for t<(t1+t2)/2 you assume SFR=SFR(t1) and t>(t1+t2)/2 you assume SFR=SFR(t2)
-input_massFracSFR = np.array([])
-input_massFracLBT = np.array([])
-current_input_LBT = cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value
-for n in range(len(um_sfh)-1):
-    input_massFracLBT = np.append(input_massFracLBT, current_input_LBT[n])
-    input_massFracLBT = np.append(input_massFracLBT, current_input_LBT[n]-((current_input_LBT[n]-current_input_LBT[n+1])/2)) # need to add halfway point
-    if(len(input_massFracSFR) == 0):
-        input_massFracSFR = np.append(input_massFracSFR, um_sfh[n])
-    else:
-        input_massFracSFR = np.append(input_massFracSFR, input_massFracSFR[-1] + um_sfh[n])
+def massFrac(lbt, sfr):
+    if(lbt[0] > lbt[1]): 
+        lbt = lbt[::-1]
+        sfr = sfr[::-1]
     
-    input_massFracSFR = np.append(input_massFracSFR, input_massFracSFR[-1]+um_sfh[n+1])
+    massFracSFR = np.array([])
+    massFracLBT = np.array([])
+    for n in range(len(lbt)-1):
+        massFracLBT = np.append(massFracLBT, lbt[n])
+        massFracLBT = np.append(massFracLBT, lbt[n]+((lbt[n+1]-lbt[n])/2)) # need to add halfway point
+        if(len(massFracSFR) == 0):
+            massFracSFR = np.append(massFracSFR, ((lbt[n+1]+lbt[n])*0.5 - lbt[n])*(sfr[n]))
+            massFracSFR = np.append(massFracSFR, ((lbt[n+1]+lbt[n])*0.5 - lbt[n])*(sfr[n+1]))
+        else:
+            massFracSFR = np.append(massFracSFR, massFracSFR[-1] + ((lbt[n+1]+lbt[n])*0.5 - lbt[n])*(sfr[n]))
+            massFracSFR = np.append(massFracSFR, massFracSFR[-1] + (lbt[n+1] - (lbt[n+1]+lbt[n])*0.5)*(sfr[n+1]))
+    
+    #massFracSFR = np.append(massFracSFR, massFracSFR[-1]+sfr[n+1])
+    non_nan_indices = np.where(~np.isnan(massFracSFR))[0]
+
+    if non_nan_indices.size == 0:
+        totalmass = massFracSFR[-1]
+        massFracSFR = massFracSFR/totalmass
+    else:
+        last_non_nan_index = non_nan_indices[-1]
+        totalmass = massFracSFR[last_non_nan_index]
+        massFracSFR = massFracSFR/totalmass
+    
+    return massFracLBT, massFracSFR, totalmass
+    
+cmf_input_lbt,cmf_input_sfh,cmf_totalinputmass = massFrac(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh)
+cmf_output_lbt,cmf_output_sfh,cmf_totaloutputmass = massFrac(lbt_interp, sfrPercent[:,2])
+_,cmf_output_sfh_ue,_ = massFrac(lbt_interp, sfrPercent[:,3])
+_,cmf_output_sfh_le,_ = massFrac(lbt_interp, sfrPercent[:,1])
+
+ax[3].fill_between(cmf_output_lbt, cmf_output_sfh_le, cmf_output_sfh_ue, color='grey', alpha=.5)
+ax[3].plot(cmf_output_lbt,cmf_output_sfh,color='black',lw=1.5,label='Output SFH')
+ax[3].plot(cmf_input_lbt, cmf_input_sfh, color='blue',lw=1.5,label='Input SFH')
+
+print("Total input mass from integral: " + str(cmf_totalinputmass) + ", known input mass: " + str(obs['logM']))
+print("Total output mass from integral: " + str(cmf_totaloutputmass) + ", known output mass: " + str(percentiles['logmass'][1]))
 
 # t50, t90 - intersection function
-x_in_t50, y = intersection_function(input_massFracLBT, np.full(len(input_massFracLBT), 0.5), input_massFracSFR/input_massFracSFR[-1])
-x_in_t90, y = intersection_function(input_massFracLBT, np.full(len(input_massFracLBT), 0.9), input_massFracSFR/input_massFracSFR[-1])
+x_in_t50, y = intersection_function(cmf_input_lbt, np.full(len(cmf_input_lbt), 0.5), cmf_input_sfh)
+x_in_t95, y = intersection_function(cmf_input_lbt, np.full(len(cmf_input_lbt), 0.5), cmf_input_sfh)
+
+# t50, t90 - intersection function
+x_rec_t50, y = intersection_function(cmf_output_lbt, np.full(len(cmf_output_lbt), 0.5), cmf_output_sfh)
+x_rec_t95, y = intersection_function(cmf_output_lbt, np.full(len(cmf_output_lbt), 0.95), cmf_output_sfh)
 
 # plot t50, 590
-ax[3].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='#734a4a', label='Input t50/t90')
-ax[3].axvline(x_in_t90[0], linestyle='dotted', lw=1, color='#734a4a')
-ax[3].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='#5a1894', label='Output t50/t90')
-ax[3].axvline(x_rec_t90[0], linestyle='dotted', lw=1, color='#5a1894')
+ax[3].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='blue', label='Input t50/t95')
+ax[3].axvline(x_in_t95[0], linestyle='dotted', lw=1, color='blue')
+ax[3].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='black', label='Output t50/t95')
+ax[3].axvline(x_rec_t95[0], linestyle='dotted', lw=1, color='black')
 
-ax[1].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='#734a4a', label='Input t50/t90')
-ax[1].axvline(x_in_t90[0], linestyle='dotted', lw=1, color='#734a4a')
-ax[1].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='#5a1894', label='Output t50/t90')
-ax[1].axvline(x_rec_t90[0], linestyle='dotted', lw=1, color='#5a1894')
+ax[1].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='blue')
+ax[1].axvline(x_in_t95[0], linestyle='dotted', lw=1, color='blue')
+ax[1].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='black')
+ax[1].axvline(x_rec_t95[0], linestyle='dotted', lw=1, color='black')
 
-ax[2].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='#734a4a', label='Input t50/t90')
-ax[2].axvline(x_in_t90[0], linestyle='dotted', lw=1, color='#734a4a')
-ax[2].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='#5a1894', label='Output t50/t90')
-ax[2].axvline(x_rec_t90[0], linestyle='dotted', lw=1, color='#5a1894')
+ax[2].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='blue')
+ax[2].axvline(x_in_t95[0], linestyle='dotted', lw=1, color='blue')
+ax[2].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='black')
+ax[2].axvline(x_rec_t95[0], linestyle='dotted', lw=1, color='black')
 
-ax[3].plot(input_massFracLBT, input_massFracSFR/input_massFracSFR[-1], color='blue', lw=1.5, label='Input SFH')
 ax[3].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
 ax[3].set_ylabel('Cumulative Mass Fraction')
 ax[3].legend()

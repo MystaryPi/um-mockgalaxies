@@ -147,7 +147,7 @@ if len(sys.argv) > 0:
     mb_directory = str(sys.argv[1]) # example: '/Users/michpark/JWST_Programs/mockgalaxies/final/z3mb/'
     nomb_directory = str(sys.argv[2]) # example: '/Users/michpark/JWST_Programs/mockgalaxies/final/z3nomb/'
   
-plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/scatterplots-mb-nomb/'
+plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/debug-april/dif-scatter/'
 cosmo = FlatLambdaCDM(H0=70, Om0=.3)
 
 from um_prospector_param_file import updated_logsfr_ratios_to_masses_psb, updated_psb_logsfr_ratios_to_agebins
@@ -166,8 +166,8 @@ for directory_index, directory in enumerate(directory_array):
             res, obs, mod = results_from("{}".format(mcmcfile), dangerous=True)
             print('----- Making plots for '+str(obs['objid']) + ' in ' + str(directory) + ' -----')
             
-            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
             sps = get_sps(res)
         
@@ -334,11 +334,11 @@ ax[0].set_ylim((-0.5, 0.2))
 ax[1].set_xlim((-0.3, 0.4))
 ax[1].set_ylim((-0.5, 0.2))
 
-divnorm = colors.TwoSlopeNorm(vmin=-0.2, vcenter=0, vmax=0.8)
+divnorm = colors.TwoSlopeNorm(vmin=-0.6, vcenter=0, vmax=0.6)
 
 counter = 0 # MB plot + NO MB plot
-for ax in ax.flat:
-    im = ax.scatter(logmass_array[counter],zred_array[counter], c=dust2_array[counter], ec='k', norm=divnorm, cmap='bwr')
+while counter < 2:
+    im = ax[counter].scatter(logmass_array[counter],zred_array[counter], c=dust2_array[counter], ec='k', norm=divnorm, cmap='bwr')
     counter += 1 
     
 plt.tight_layout()
@@ -373,7 +373,7 @@ if not os.path.exists(plotdir):
     os.mkdir(plotdir)
 
 counter=0
-filename = 'dif_{}_z1.pdf' #defines filename for all objects
+filename = 'dif_{}_z2.pdf' #defines filename for all objects
 while os.path.isfile(plotdir+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made

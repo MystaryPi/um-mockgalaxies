@@ -145,7 +145,7 @@ if len(sys.argv) > 0:
     mb_directory = str(sys.argv[1]) # example: '/Users/michpark/JWST_Programs/mockgalaxies/final/z3mb/'
     nomb_directory = str(sys.argv[2]) # example: '/Users/michpark/JWST_Programs/mockgalaxies/final/z3nomb/'
   
-plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/debug-april/quenchtest-scatters/'
+plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/debug-april/colored-ave-sfr/'
 cosmo = FlatLambdaCDM(H0=70, Om0=.3)
 
 #command line argument (whole thing or just one)
@@ -273,98 +273,48 @@ for directory_index, directory in enumerate(directory_array):
             percentiles = get_percentiles(res, mod) # stores 16 50 84 percentiles for dif parameters
             massFrac = 1 - massPercent[lbt_interp==1, 1:].flatten()[::-1]  
 
-            # QUENCH TIME 
-            input_mask = [i for i in enumerate(um_sfh) if i == 0]
-            output_mask = [i for i, n in enumerate(sfrPercent[:,2]) if n == 0]
-
-            input_sfh = um_sfh[::-1]
-            input_lbt = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)[::-1]
-            output_sfh = sfrPercent[:,2]
-            output_lbt = lbt_interp
-
-            for i in sorted(input_mask, reverse=True):
-                input_sfh = np.delete(input_sfh, i)
-                input_lbt = np.delete(input_lbt, i)
-            for i in sorted(output_mask, reverse=True):
-                output_sfh = np.delete(output_sfh, i)
-                output_lbt = np.delete(output_lbt, i)
-
-            lbtLimit = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)[0]
-            output_lbt_mask = [i for i, n in enumerate(output_lbt) if n > lbtLimit]
-            for i in sorted(output_lbt_mask, reverse=True): # go in reverse order to prevent indexing error
-                output_sfh = np.delete(output_sfh, i)
-                output_lbt = np.delete(output_lbt, i)
-
-            # Find derivatives of input + output SFH, age is adjusted b/c now difference between points
-            # will take in the SFH and the time period over which you want to average
-            # for each point, you determine its derivative by looking at a timescale SFR away
-            def quenching_timescales(x, y, timescale):
-                from scipy import interpolate
-    
-                y_interp = interpolate.interp1d(x, y)
-    
-                # Calculate deriv of y (sfh) with respect to x (lbt)
-                dy_dx = np.array([])
-                newx = np.array([])
-                for i,lbtval in enumerate(x):
-                    if(lbtval + timescale < x[-1]): #up to upper limit
-                        dy_dx = np.append(dy_dx, -(y_interp(lbtval+timescale) - y[i])/timescale)
-                        newx = np.append(newx, lbtval) #create a new lbt up to upper limit
-
-                return newx, dy_dx
-    
-            x_d_input, y_d_input = quenching_timescales(input_lbt, input_sfh, 0.1)
-            x_d_output, y_d_output = quenching_timescales(output_lbt, output_sfh, 0.1)
-        
-
-            # Use intersect package to determine where derivatives intersect the quenching threshold
-            # Finding the max and minimum, then normalizing the threshold 
-            quenching_threshhold = -100 #originally -500
-            x_i, y_i = intersection_function(x_d_input, np.full(len(x_d_input), quenching_threshhold), y_d_input)
-            x_o, y_o = intersection_function(x_d_output, np.full(len(x_d_output), quenching_threshhold), y_d_output)
+            def averageSFR(lbt, sfh, timescale):  
+                # SFH * time / total time
+                limited_lbt = np.array([])
+                limited_sfh = np.array([])
+                
+                # check if reversed array
+                if(lbt[0] > lbt[1]): 
+                    lbt = lbt[::-1]
+                    sfh = sfh[::-1]
+                
+                for m in range(len(lbt)):
+                    if(lbt[m] <= timescale):
+                        limited_lbt = np.append(limited_lbt, lbt[m])
+                        limited_sfh = np.append(limited_sfh, sfh[m])
+                area_under = 0
+                for n in range(len(limited_lbt)-1):
+                    area_under += ((limited_lbt[n+1]+limited_lbt[n])*0.5 - limited_lbt[n]) * (limited_sfh[n] + limited_sfh[n+1])
+                
+                # add the last value, ends up being 0 if all the way up to 
+                area_under += limited_sfh[-1] * (timescale - limited_lbt[-1])
+                
+                return area_under/timescale
+                
+            inputAverageSFR = averageSFR(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, timescale=0.1)
+            outputAverageSFR_LE = averageSFR(lbt_interp, sfrPercent[:,1], timescale=0.1)
+            outputAverageSFR = averageSFR(lbt_interp, sfrPercent[:,2], timescale=0.1)
+            outputAverageSFR_UE = averageSFR(lbt_interp, sfrPercent[:,3], timescale=0.1)
             
-            if len(x_o) == 0: #output quench time not present
-                x_o = np.append(x_o,-0.5)
-            if len(x_i) == 0: #input quench time not present
-                x_i = np.append(x_i,-0.5)
-        
-            # t50, t95 - intersection function
-            x_rec_t50, y = intersection_function(lbt_interp, np.full(len(lbt_interp), 0.5), massPercent[:,2])
-            x_rec_t95, y = intersection_function(lbt_interp, np.full(len(lbt_interp), 0.95), massPercent[:,2])
+            print("For " + str(obs['objid']) + ", we have input INST: " + str(um_sfh[-1]) + ", input AVE: " + str(inputAverageSFR) + ", outputINST: " + str(sfrPercent[:,2][0]) + ", output AVE: " + str(outputAverageSFR) + " with errors: " + str(outputAverageSFR_LE) + " and " + str(outputAverageSFR_UE))
             
-            # also need to find input oof
-            # Square interpolation - SFR(t1) and SFR(t2) are two snapshots, then for t<(t1+t2)/2 you assume SFR=SFR(t1) and t>(t1+t2)/2 you assume SFR=SFR(t2)
-            input_massFracSFR = []
-            input_massFracLBT = []
-            current_input_LBT = cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value
-            for n in range(len(um_sfh)-1):
-                input_massFracLBT = np.append(input_massFracLBT, current_input_LBT[n])
-                input_massFracLBT = np.append(input_massFracLBT, current_input_LBT[n]-((current_input_LBT[n]-current_input_LBT[n+1])/2)) # need to add halfway point
-                if(len(input_massFracSFR) == 0):
-                    input_massFracSFR = np.append(input_massFracSFR, um_sfh[n])
-                else:
-                    input_massFracSFR = np.append(input_massFracSFR, input_massFracSFR[-1] + um_sfh[n])
-    
-                input_massFracSFR = np.append(input_massFracSFR, input_massFracSFR[-1]+um_sfh[n+1])
-
-            # t50, t95 - intersection function
-            x_in_t50, y = intersection_function(input_massFracLBT, np.full(len(input_massFracLBT), 0.5), input_massFracSFR/input_massFracSFR[-1])
-            x_in_t95, y = intersection_function(input_massFracLBT, np.full(len(input_massFracLBT), 0.95), input_massFracSFR/input_massFracSFR[-1])
-            
-            print("For " + str(obs['objid']) + ", we have input t50: " + str(x_in_t50[0]) + ", rec t50: " + str(x_rec_t50[0]) + ", input t95: " + str(x_in_t95[0]) + ", rec t95: " + str(x_rec_t95[0]))
-            
-            # t50 in, t50 rec, t95 in, t95 rec, my quench in, my quench out
+            # input ave, output ave le, output ave, output ave ue
             zred_array[directory_index][mcmc_counter] = percentiles['zred'][1]-spsdict['zred']             
             if(directory_index == 0): # MB
                 if(first_iteration):
-                    results_mb = np.array([x_in_t50[0], x_rec_t50[0], x_in_t95[0], x_rec_t95[0], x_i[0], x_o[0]]).flatten()
+                    results_mb = np.array([inputAverageSFR, outputAverageSFR_LE, outputAverageSFR, outputAverageSFR_UE]).flatten()
                 else:
-                    results_mb = np.vstack([results_mb, np.array([x_in_t50[0], x_rec_t50[0], x_in_t95[0], x_rec_t95[0], x_i[0], x_o[0]]).flatten()])  
+                    results_mb = np.vstack([results_mb, np.array([inputAverageSFR, outputAverageSFR_LE, outputAverageSFR, outputAverageSFR_UE]).flatten()])  
             if(directory_index == 1): # No MB
                 if(first_iteration):
-                    results_nomb = np.array([x_in_t50[0], x_rec_t50[0], x_in_t95[0], x_rec_t95[0], x_i[0], x_o[0]]).flatten()
+                    results_nomb = np.array([inputAverageSFR, outputAverageSFR_LE, outputAverageSFR, outputAverageSFR_UE]).flatten()
                 else:
-                    results_nomb = np.vstack([results_nomb, np.array([x_in_t50[0], x_rec_t50[0], x_in_t95[0], x_rec_t95[0], x_i[0], x_o[0]]).flatten()])  
+                    results_nomb = np.vstack([results_nomb, np.array([inputAverageSFR, outputAverageSFR_LE, outputAverageSFR, outputAverageSFR_UE]).flatten()])  
             first_iteration= False
             mcmc_counter += 1
             
@@ -373,52 +323,27 @@ for directory_index, directory in enumerate(directory_array):
 # input vs. recovered t95-t50
 # input my quench vs t95
 # recovered my quench vs. t95
-fig,ax = plt.subplots(2, 3, figsize=(12,9))
-
-# BROAD+MB 
+fig,ax = plt.subplots(2, 1, figsize=(8,8))
 import matplotlib.colors as colors
 from matplotlib import cm
 divnorm = colors.TwoSlopeNorm(vmin=-0.2, vcenter=0, vmax=0.2)
-
-# input vs. recovered t50
-ax[0,0].scatter(results_mb[:,0], results_mb[:,1], c=zred_array[0], ec='k', norm=divnorm, cmap='bwr')
-ax[0,0].axline((0, 0), slope=1., ls='--', color='black', lw=2)
-ax[0,0].set_ylabel(r'Recovered $t50$ [Gyr]')
-ax[0,0].set_xlabel(r'Input $t50$ [Gyr]')
-
-# input vs. recovered t95
-ax[0,1].scatter(results_mb[:,2], results_mb[:,3], c=zred_array[0], ec='k', norm=divnorm, cmap='bwr')
-ax[0,1].axline((0, 0), slope=1., ls='--', color='black', lw=2)
-ax[0,1].set_ylabel(r'Recovered $t95$ [Gyr]')
-ax[0,1].set_xlabel(r'Input $t95$ [Gyr]')
-
-# input vs. recovered t95-t50
-ax[0,2].scatter(results_mb[:,2]-results_mb[:,0], results_mb[:,3]-results_mb[:,1], c=zred_array[0], ec='k', norm=divnorm, cmap='bwr')
-ax[0,2].axline((0, 0), slope=1., ls='--', color='black', lw=2)
-ax[0,2].set_ylabel(r'Recovered $t95 - t50$ [Gyr]')
-ax[0,2].set_xlabel(r'Input $t95 - t50$ [Gyr]')
-
-# BROAD+ONLY
-# input vs. recovered t50
-ax[1,0].scatter(results_nomb[:,0], results_nomb[:,1], c=zred_array[1], ec='k', norm=divnorm, cmap='bwr')
-ax[1,0].axline((0, 0), slope=1., ls='--', color='black', lw=2)
-ax[1,0].set_ylabel(r'Recovered $t50$ [Gyr]')
-ax[1,0].set_xlabel(r'Input $t50$ [Gyr]')
-
-# input vs. recovered t95
-ax[1,1].scatter(results_nomb[:,2], results_nomb[:,3], c=zred_array[1], ec='k', norm=divnorm, cmap='bwr')
-ax[1,1].axline((0, 0), slope=1., ls='--', color='black', lw=2)
-ax[1,1].set_ylabel(r'Recovered $t95$ [Gyr]')
-ax[1,1].set_xlabel(r'Input $t95$ [Gyr]')
-
-# input vs. recovered t95-t50
-ax[1,2].scatter(results_nomb[:,2]-results_nomb[:,0], results_mb[:,3]-results_mb[:,1], c=zred_array[1], ec='k', norm=divnorm, cmap='bwr')
-ax[1,2].axline((0, 0), slope=1., ls='--', color='black', lw=2)
-ax[1,2].set_ylabel(r'Recovered $t95 - t50$ [Gyr]')
-ax[1,2].set_xlabel(r'Input $t95 - t50$ [Gyr]')
-
+counter=0
+while counter < 2:
+    if(counter == 0): 
+        ax[counter].scatter(results_mb[:,0], results_mb[:,2], c=zred_array[0], norm=divnorm, cmap='bwr',ec='k')
+        ax[counter].errorbar(results_mb[:,0], results_mb[:,2], yerr=np.vstack((results_mb[:,2]-results_mb[:,1], results_mb[:,3]-results_mb[:,2])), ecolor = 'gray', zorder=0, ls='none',elinewidth=.7)
+    else: 
+        ax[counter].scatter(results_nomb[:,0], results_nomb[:,2], c=zred_array[1], norm=divnorm, cmap='bwr',ec='k')
+        ax[counter].errorbar(results_nomb[:,0], results_nomb[:,2], yerr=np.vstack((results_nomb[:,2]-results_nomb[:,1], results_nomb[:,3]-results_nomb[:,2])), ecolor = 'gray', zorder=0,ls='none',elinewidth=.7)
+    
+    ax[counter].axline((0, 0), slope=1., ls='--', color='black', lw=2,zorder=0)
+    ax[counter].set_ylabel(r'Recovered $log SFR_{ave, 100 Myr}$ (log $M_{sun}$ / yr)')
+    ax[counter].set_xlabel(r'Input $log SFR_{ave, 100 Myr}$ (log $M_{sun}$ / yr)')
+    ax[counter].set_xscale('log')
+    ax[counter].set_yscale('log')
+    counter += 1
+    
 plt.tight_layout()
-
 plt.figtext(0.5,0.92, "Broad+MB", ha="center", va="top", fontsize=14, color="maroon")
 plt.figtext(0.5,0.05, "Broad only", ha="center", va="top", fontsize=14, color="navy")
 plt.subplots_adjust(top=0.87, bottom = 0.13)
@@ -436,13 +361,13 @@ if not os.path.exists(plotdir):
     os.mkdir(plotdir)
 
 counter=0
-filename = '{}_z2_quenchtest.pdf' #defines filename for all objects
+filename = '{}_z1_colored-ave-sfr.pdf' #defines filename for all objects
 while os.path.isfile(plotdir+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made
 fig.savefig(plotdir+filename, bbox_inches='tight')
   
-print('saved quench tests to '+plotdir+filename) 
+print('saved colored average SFRs to '+plotdir+filename) 
 
 #plt.close(fig)
 
