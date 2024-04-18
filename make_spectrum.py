@@ -255,11 +255,8 @@ def convertMaggiesToFlam(maggies):
     return flux_flambda
 
         
-def getMags(sps, filternames=['jwst_f115w','jwst_f150w','jwst_f200w','jwst_f277w','jwst_f356w','jwst_f410m','jwst_f444w','acs_wfc_f435w',
-            'acs_wfc_f606w','acs_wfc_f814w','wfc3_ir_f105w','wfc3_ir_f125w','wfc3_ir_f140w','wfc3_ir_f160w',
-            'jwst_f070w','jwst_f090w','jwst_f140m','jwst_f162m','jwst_f182m','jwst_f210m','jwst_f250m','jwst_f300m',
-            'jwst_f335m','jwst_f360m','jwst_f430m','jwst_f460m','jwst_f480m']):
-
+def getMags(sps, filternames=['jwst_f115w','jwst_f150w','jwst_f200w','jwst_f277w','jwst_f356w','jwst_f410m','jwst_f444w','jwst_f070w','jwst_f090w','jwst_f140m','jwst_f162m','jwst_f182m','jwst_f210m','jwst_f250m','jwst_f300m',
+    'jwst_f335m','jwst_f360m','jwst_f410m','jwst_f430m','jwst_f460m','jwst_f480m']):
     '''get AB magnitudes in a set of filters given some SFH/t to set
     tabular SFH and a redshift.
     '''
@@ -300,33 +297,27 @@ def build_obs(filters, mags, gal, depths): #should be build_obs technically
     # and GOODS-N from Skelton+14 Table 6
     if depths == None:
         # Depths from UNCOVER vs UNCOVER + mega science JWST
-        depths = {'jwst_f115w':30.05, # UNCOVER, JWST
-            'jwst_f150w':30.18,
-            'jwst_f200w':30.12,
-            'jwst_f277w':29.75,
-            'jwst_f356w':29.79,
-            'jwst_f410m':29.03,
-            'jwst_f444w':29.25,
-            'acs_wfc_f435w':29.45, # UNCOVER, HST
-            'acs_wfc_f606w':29.73, 
-            'acs_wfc_f814w':29.70,
-            'wfc3_ir_f105w': 29.56,
-            'wfc3_ir_f125w':29.09,
-            'wfc3_ir_f140w':28.95,
-            'wfc3_ir_f160w':29.11,
-            'jwst_f070w': 29.60, # MB
-            'jwst_f090w':30.19, 
-            'jwst_f140m': 28.69, 
-            'jwst_f162m': 28.67, 
-            'jwst_f182m':29.06, 
-            'jwst_f210m':29.02, 
-            'jwst_f250m':28.20, 
-            'jwst_f300m':28.66, 
-            'jwst_f335m':28.67, 
-            'jwst_f360m':28.62, 
-            'jwst_f430m':27.72, 
-            'jwst_f460m':27.44, 
-            'jwst_f480m':27.40}
+        depths = {'jwst_f115w':30.05,
+                    'jwst_f150w':30.18,
+                    'jwst_f200w':30.12,
+                    'jwst_f277w':29.75,
+                    'jwst_f356w':29.79,
+                    'jwst_f410m':29.03,
+                    'jwst_f444w':29.25,
+                    'jwst_f070w': 28.9, 
+                    'jwst_f090w':29.6, 
+                    'jwst_f140m': 28.9, 
+                    'jwst_f162m': 29, 
+                    'jwst_f182m':29.2, 
+                    'jwst_f210m':29, 
+                    'jwst_f250m':28.3, 
+                    'jwst_f300m':28.7, 
+                    'jwst_f335m':28.8, 
+                    'jwst_f360m':28.8, 
+                    'jwst_f410m':28.8, 
+                    'jwst_f430m':28.1, 
+                    'jwst_f460m':27.8, 
+                    'jwst_f480m':27.8}
             
     # divided by 5 because these are 5 sigma errors      
     depths_maggies = {key:10**(-0.4*value)/5 for key, value in depths.items()}   
@@ -347,8 +338,8 @@ def build_obs(filters, mags, gal, depths): #should be build_obs technically
         obs['phot_mask'] = [True]*len(maggies) #always true b/c our fake data is all good
     else:
         # No medium bands - exclude the bands that we don't need
-        obs['phot_mask'] = [True, True, True, True, True, True, True, True, True, True, True, True, True, True, False, False, False, 
-        False, False, False, False, False, False, False, False, False, False]
+        obs['phot_mask'] = [True, True, True, True, True, True, True, False, False, False, 
+                False, False, False, False, False, False, False, False, False, False, False]
     
     # make a mask -- photometry exists & errors are positive
     #obs['phot_mask'] = np.logical_and(np.isfinite(obs['maggies']),np.array(obs['maggies_unc']))
@@ -453,7 +444,7 @@ if __name__ == "__main__":
         counter = 0
         for f in obs['filters']:
             w, t = f.wavelength.copy(), f.transmission.copy()
-            if counter < 14:
+            if counter < 7:
                 plt.plot(w, t*3, lw=2, color="royalblue")
                 print(counter)
             else:
