@@ -450,8 +450,6 @@ for outroot_index, outroot in enumerate(outroot_array):
     y_prev_output = -np.diff(output_sfh) / np.diff(output_lbt)
     x_prev_output = (np.array(output_lbt)[:-1] + np.array(output_lbt)[1:]) / 2
     outquench, y_o = intersection_function(x_prev_output, np.full(len(x_prev_output), quenching_threshhold), y_prev_output)
-
-    outquench_old = outquench[0]
     
     # Plot derivative for input + output SFH, + quenching threshold from Wren's paper
     # Plot vertical lines for the quench time on the SFH plot
@@ -466,19 +464,19 @@ for outroot_index, outroot in enumerate(outroot_array):
         ax[1,0].plot(x_d_input, y_d_input, '-o', color='black', lw=1.5, label='Input does not pass quenching threshold')
         
     if(outroot_index == 0):
-        if len(x_o != 0):
-            ax[1,1].plot(x_d_output, y_d_output, '-o', color='maroon', lw=1.5, label='Quench time: ' + str(list(map('{0:.3f}'.format, outquench_old)))[2:-2] + ' Gyr')
-            ax[0,1].axvline(outquench_old, linestyle='--', lw=1.7, color='maroon')
-            ax[1,1].axvline(outquench_old, linestyle='--', lw=1.7, color='maroon')
-            ax[2,1].axvline(outquench_old, linestyle='--', lw=1.7, color='maroon')
+        if len(outquench != 0):
+            ax[1,1].plot(x_d_output, y_d_output, '-o', color='maroon', lw=1.5, label='Quench time: ' + str(list(map('{0:.3f}'.format, outquench[0])))[2:-2] + ' Gyr')
+            ax[0,1].axvline(outquench[0], linestyle='--', lw=1.7, color='maroon')
+            ax[1,1].axvline(outquench[0], linestyle='--', lw=1.7, color='maroon')
+            ax[2,1].axvline(outquench[0], linestyle='--', lw=1.7, color='maroon')
         else: 
             ax[1,1].plot(x_d_output, y_d_output, '-o', color='maroon', lw=1.5, label='Broad+MB does not pass quenching threshold')
     if(outroot_index == 1):
-        if len(x_o != 0):
-            ax[1,2].plot(x_d_output, y_d_output, '-o', color='navy', lw=1.5, label='Quench time: ' + str(list(map('{0:.3f}'.format, outquench_old)))[2:-2] + ' Gyr')
-            ax[0,2].axvline(outquench_old, linestyle='--', lw=1.7, color='navy')
-            ax[1,2].axvline(outquench_old, linestyle='--', lw=1.7, color='navy')
-            ax[2,2].axvline(outquench_old, linestyle='--', lw=1.7, color='navy')
+        if len(outquench != 0):
+            ax[1,2].plot(x_d_output, y_d_output, '-o', color='navy', lw=1.5, label='Quench time: ' + str(list(map('{0:.3f}'.format, outquench[0])))[2:-2] + ' Gyr')
+            ax[0,2].axvline(outquench[0], linestyle='--', lw=1.7, color='navy')
+            ax[1,2].axvline(outquench[0], linestyle='--', lw=1.7, color='navy')
+            ax[2,2].axvline(outquench[0], linestyle='--', lw=1.7, color='navy')
         else: 
             ax[1,2].plot(x_d_output, y_d_output, '-o', color='navy', lw=1.5, label='Broad only does not pass quenching threshold')
     
