@@ -10,7 +10,7 @@ deriv           deriv          deriv
 CMF             CMF            cmf
 
 Input objid of the galaxy to plot + will automatically retrieve MB + no MB versions:
-run t90-t50-sfh.py 559120319
+run t95-t50-sfh.py 559120319
 '''
 
 import numpy as np
@@ -53,14 +53,17 @@ cosmo = FlatLambdaCDM(H0=70, Om0=.3)
 # read in a command-line argument for THE OBJID of the galaxy
 if len(sys.argv) > 0:
     objid = str(sys.argv[1]) # example: 559120319
-
+    
 plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/giant-t90-t50/'
+#plotdir = '/oak/stanford/orgs/kipac/users/michpark/JWST_Programs/mockgalaxies/giant-t90-t50/z3/'
 
 map_bool = False # would be better to have this as a command line prompt
 # if true, plots MAP spectra + photometry. if false, plots median spectra + photometry
 
 # Retrieve correct mcmc files for mb + nomb
 root = '/Users/michpark/JWST_Programs/mockgalaxies/final/'
+#root = '/oak/stanford/orgs/kipac/users/michpark/JWST_Programs/mockgalaxies/final/'
+
 for files in os.walk(root + 'z3mb/'):
         for filename in files[2]:
             if objid in filename:
@@ -202,6 +205,8 @@ for outroot_index, outroot in enumerate(outroot_array):
     gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
     spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
+    #gal = (np.load('/oak/stanford/orgs/kipac/users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+    #spsdict = (np.load('/oak/stanford/orgs/kipac/users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
     print('Object ID: ' + str(obs['objid']))
     print('Loaded results')
@@ -388,20 +393,32 @@ for outroot_index, outroot in enumerate(outroot_array):
     ######## Derivative for SFH ###########
     # Eliminates 0 values from the SFHs, which can skew the derivative; limits quenchtime search for output
     # SFH to only be within input SFH's range
-    input_mask = [i for i in enumerate(um_sfh) if i == 0]
-    output_mask = [i for i, n in enumerate(sfrPercent[:,2]) if n == 0]
+    input_zeromask = [i for i in enumerate(um_sfh) if i == 0]
+    output_zeromask = [i for i, n in enumerate(sfrPercent[:,2]) if n == 0]
 
     input_sfh = um_sfh[::-1]
     input_lbt = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)[::-1]
     output_sfh = sfrPercent[:,2]
     output_lbt = lbt_interp
 
-    for i in sorted(input_mask, reverse=True):
+    for i in sorted(input_zeromask, reverse=True):
         input_sfh = np.delete(input_sfh, i)
         input_lbt = np.delete(input_lbt, i)
-    for i in sorted(output_mask, reverse=True):
+        
+    for i in sorted(output_zeromask, reverse=True):
         output_sfh = np.delete(output_sfh, i)
         output_lbt = np.delete(output_lbt, i)
+        
+    # mask nan points in output sfh
+    output_mask = np.ma.masked_invalid(output_sfh)
+    output_sfh = output_mask.compressed()
+    output_lbt = np.ma.masked_where(np.ma.getmask(output_mask), output_lbt).compressed()
+    
+    # shorten to match fill between regions
+    max_zred = cosmo.age(gal['sfh'][:,0]).value[-1]
+    fillbtwn_match = np.ma.masked_greater(output_lbt, max_zred)
+    output_lbt = fillbtwn_match.compressed()
+    output_sfh = np.ma.masked_where(np.ma.getmask(fillbtwn_match), output_sfh).compressed()
 
     # will take in the SFH and the time period over which you want to average
     # for each point, you determine its derivative by looking at a timescale SFR away
@@ -421,118 +438,110 @@ for outroot_index, outroot in enumerate(outroot_array):
         return newx, dy_dx
     
     quenching_threshhold = -100 #originally -500
-    
-    x_d_input, y_d_input = quenching_timescales(input_lbt, input_sfh, 0.1)
-    x_d_output, y_d_output = quenching_timescales(output_lbt, output_sfh, 0.1)
+    x_d_input, y_d_input = quenching_timescales(input_lbt, input_sfh, 0.001) # 0.001 = lbt interp range
+    x_d_output, y_d_output = quenching_timescales(output_lbt, output_sfh, 0.001)
     
     # Use intersect package to determine where derivatives intersect the quenching threshold
-    quenching_threshhold = -100 #originally -500
     x_i, y_i = intersection_function(x_d_input, np.full(len(x_d_input), quenching_threshhold), y_d_input)
     x_o, y_o = intersection_function(x_d_output, np.full(len(x_d_output), quenching_threshhold), y_d_output)
     
+    
     # Previous quenching method
-    y_prev_input = -np.diff(input_sfh) / np.diff(input_lbt) 
     y_prev_output = -np.diff(output_sfh) / np.diff(output_lbt)
-    x_prev_input = (np.array(input_lbt)[:-1] + np.array(input_lbt)[1:]) / 2
     x_prev_output = (np.array(output_lbt)[:-1] + np.array(output_lbt)[1:]) / 2
-    inquench, y_i = intersection_function(x_prev_input, np.full(len(x_prev_input), quenching_threshhold), y_prev_input)
     outquench, y_o = intersection_function(x_prev_output, np.full(len(x_prev_output), quenching_threshhold), y_prev_output)
 
-    inquench_old = inquench[0]
     outquench_old = outquench[0]
     
     # Plot derivative for input + output SFH, + quenching threshold from Wren's paper
     # Plot vertical lines for the quench time on the SFH plot
+    # INPUT = 0.001 GYR TIMESCALE, OUTPUT = JUST PLAIN DERIV
     
     if len(x_i) != 0:
         ax[1,0].plot(x_d_input, y_d_input, '-o', color='black', lw=1.5, label='Quench time: ' + str(list(map('{0:.3f}'.format, x_i[0])))[2:-2] + ' Gyr' if outroot_index == 0 else "")
         ax[0,0].axvline(x_i[0], linestyle='--', lw=1.7, color='black')
         ax[1,0].axvline(x_i[0], linestyle='--', lw=1.7, color='black')
         ax[2,0].axvline(x_i[0], linestyle='--', lw=1.7, color='black')
-        ax[1,0].axvline(inquench_old, linestyle='--', lw=1.7, color='gray', alpha=0.5, label='Previous quench time result: ' + str(list(map('{0:.3f}'.format, inquench_old)))[2:-2] + ' Gyr' if outroot_index == 0 else "")
-        ax[0,0].axvline(inquench_old, linestyle='--', lw=1.7, color='gray', alpha=0.5)
-        ax[2,0].axvline(inquench_old, linestyle='--', lw=1.7, color='gray', alpha=0.5)
     else:
         ax[1,0].plot(x_d_input, y_d_input, '-o', color='black', lw=1.5, label='Input does not pass quenching threshold')
         
     if(outroot_index == 0):
         if len(x_o != 0):
-            ax[1,1].plot(x_d_output, y_d_output, '-o', color='maroon', lw=1.5, label='Quench time: ' + str(list(map('{0:.3f}'.format, x_o[0])))[2:-2] + ' Gyr')
-            ax[0,1].axvline(x_o[0], linestyle='--', lw=1.7, color='maroon')
-            ax[1,1].axvline(x_o[0], linestyle='--', lw=1.7, color='maroon')
-            ax[2,1].axvline(x_o[0], linestyle='--', lw=1.7, color='maroon')
-            ax[1,1].axvline(outquench_old, linestyle='--', lw=1.7, color='maroon', alpha=0.5, label='Previous quench time result: ' + str(list(map('{0:.3f}'.format, outquench_old)))[2:-2] + ' Gyr')
-            ax[0,1].axvline(outquench_old, linestyle='--', lw=1.7, color='maroon', alpha=0.5)
-            ax[2,1].axvline(outquench_old, linestyle='--', lw=1.7, color='maroon', alpha=0.5)
+            ax[1,1].plot(x_d_output, y_d_output, '-o', color='maroon', lw=1.5, label='Quench time: ' + str(list(map('{0:.3f}'.format, outquench_old)))[2:-2] + ' Gyr')
+            ax[0,1].axvline(outquench_old, linestyle='--', lw=1.7, color='maroon')
+            ax[1,1].axvline(outquench_old, linestyle='--', lw=1.7, color='maroon')
+            ax[2,1].axvline(outquench_old, linestyle='--', lw=1.7, color='maroon')
         else: 
             ax[1,1].plot(x_d_output, y_d_output, '-o', color='maroon', lw=1.5, label='Broad+MB does not pass quenching threshold')
     if(outroot_index == 1):
         if len(x_o != 0):
-            ax[1,2].plot(x_d_output, y_d_output, '-o', color='navy', lw=1.5, label='Quench time: ' + str(list(map('{0:.3f}'.format, x_o[0])))[2:-2] + ' Gyr')
-            ax[0,2].axvline(x_o[0], linestyle='--', lw=1.7, color='navy')
-            ax[1,2].axvline(x_o[0], linestyle='--', lw=1.7, color='navy')
-            ax[2,2].axvline(x_o[0], linestyle='--', lw=1.7, color='navy')
-            ax[1,2].axvline(outquench_old, linestyle='--', lw=1.7, color='navy', alpha=0.5, label='Previous quench time result: ' + str(list(map('{0:.3f}'.format, outquench_old)))[2:-2] + ' Gyr')
-            ax[0,2].axvline(outquench_old, linestyle='--', lw=1.7, color='navy', alpha=0.5)
-            ax[2,2].axvline(outquench_old, linestyle='--', lw=1.7, color='navy', alpha=0.5)
+            ax[1,2].plot(x_d_output, y_d_output, '-o', color='navy', lw=1.5, label='Quench time: ' + str(list(map('{0:.3f}'.format, outquench_old)))[2:-2] + ' Gyr')
+            ax[0,2].axvline(outquench_old, linestyle='--', lw=1.7, color='navy')
+            ax[1,2].axvline(outquench_old, linestyle='--', lw=1.7, color='navy')
+            ax[2,2].axvline(outquench_old, linestyle='--', lw=1.7, color='navy')
         else: 
             ax[1,2].plot(x_d_output, y_d_output, '-o', color='navy', lw=1.5, label='Broad only does not pass quenching threshold')
     
     # CUMULATIVE MASS FRACTION
-    # t50, t90 - intersection function
+    # t50, t95 - intersection function
     x_rec_t50, y = intersection_function(lbt_interp, np.full(len(lbt_interp), 0.5), massPercent[:,2])
-    x_rec_t90, y = intersection_function(lbt_interp, np.full(len(lbt_interp), 0.9), massPercent[:,2])
+    x_rec_t95, y = intersection_function(lbt_interp, np.full(len(lbt_interp), 0.95), massPercent[:,2])
 
     # plot mass frac
     if(outroot_index == 0):
         ax[2,1].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='maroon', alpha=.3)
         ax[2,1].plot(lbt_interp, massPercent[:,2], color='maroon', lw=1.5)
-        ax[2,1].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#b44a39', label='Broad+MB t50/t90')
-        ax[2,1].axvline(x_rec_t90[0], linestyle='dotted', lw=1.1, color='#b44a39')
+        ax[2,1].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#b44a39', label='Broad+MB t50/t95')
+        ax[2,1].axvline(x_rec_t95[0], linestyle='dotted', lw=1.1, color='#b44a39')
         ax[0,1].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#b44a39')
-        ax[0,1].axvline(x_rec_t90[0], linestyle='dotted', lw=1.1, color='#b44a39')
+        ax[0,1].axvline(x_rec_t95[0], linestyle='dotted', lw=1.1, color='#b44a39')
         ax[1,1].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#b44a39')
-        ax[1,1].axvline(x_rec_t90[0], linestyle='dotted', lw=1.1, color='#b44a39')
+        ax[1,1].axvline(x_rec_t95[0], linestyle='dotted', lw=1.1, color='#b44a39')
     if(outroot_index == 1):
         ax[2,2].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='navy', alpha=.3)
         ax[2,2].plot(lbt_interp, massPercent[:,2], color='navy', lw=1.5)
-        ax[2,2].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#5273ee', label='Broad only t50/t90')
-        ax[2,2].axvline(x_rec_t90[0], linestyle='dotted', lw=1.1, color='#5273ee')
+        ax[2,2].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#5273ee', label='Broad only t50/t95')
+        ax[2,2].axvline(x_rec_t95[0], linestyle='dotted', lw=1.1, color='#5273ee')
         ax[0,2].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#5273ee')
-        ax[0,2].axvline(x_rec_t90[0], linestyle='dotted', lw=1.1, color='#5273ee')
+        ax[0,2].axvline(x_rec_t95[0], linestyle='dotted', lw=1.1, color='#5273ee')
         ax[1,2].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#5273ee')
-        ax[1,2].axvline(x_rec_t90[0], linestyle='dotted', lw=1.1, color='#5273ee')
+        ax[1,2].axvline(x_rec_t95[0], linestyle='dotted', lw=1.1, color='#5273ee')
     
     print("For loop completed")
 
-
-# Square interpolation - SFR(t1) and SFR(t2) are two snapshots, then for t<(t1+t2)/2 you assume SFR=SFR(t1) and t>(t1+t2)/2 you assume SFR=SFR(t2)
+# CUMULATIVE MASS FRAC - INPUT
 input_massFracSFR = np.array([])
-input_massFracLBT = np.array([])
-current_input_LBT = cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value
-
-for n in range(len(um_sfh)-1):
-    input_massFracLBT = np.append(input_massFracLBT, current_input_LBT[n])
-    input_massFracLBT = np.append(input_massFracLBT, current_input_LBT[n]-((current_input_LBT[n]-current_input_LBT[n+1])/2)) # need to add halfway point
-    if(len(input_massFracSFR) == 0):
-        input_massFracSFR = np.append(input_massFracSFR, um_sfh[n])
+trapsfh = um_sfh
+traplbt = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)
+for n in range(len(trapsfh)-1):
+    traplbtprep = np.array([traplbt[n], traplbt[n+1]])
+    trapsfhprep = np.array([trapsfh[n], trapsfh[n+1]])
+    if(len(input_massFracSFR) == 0): # accumulate mass
+        input_massFracSFR = np.append(input_massFracSFR, trap(traplbtprep*10**9,trapsfhprep))
     else:
-        input_massFracSFR = np.append(input_massFracSFR, input_massFracSFR[-1] + um_sfh[n])
+        input_massFracSFR = np.append(input_massFracSFR, input_massFracSFR[-1] + trap(traplbtprep*10**9,trapsfhprep))
+    
+input_massFracSFR = np.log10(-input_massFracSFR)
+inputmassPercent = input_massFracSFR/input_massFracSFR[len(input_massFracSFR)-1]
+inputmassLBT = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)[1:len(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)]
 
-    input_massFracSFR = np.append(input_massFracSFR, input_massFracSFR[-1]+um_sfh[n+1])
+# t50, t95 - intersection function
+x_in_t50, y = intersection_function(inputmassLBT, np.full(len(inputmassLBT), 0.5), inputmassPercent)
+x_in_t95, y = intersection_function(inputmassLBT, np.full(len(inputmassLBT), 0.95), inputmassPercent)
 
-# t50, t90 - intersection function
-x_in_t50, y = intersection_function(input_massFracLBT, np.full(len(input_massFracLBT), 0.5), input_massFracSFR/input_massFracSFR[-1])
-x_in_t90, y = intersection_function(input_massFracLBT, np.full(len(input_massFracLBT), 0.9), input_massFracSFR/input_massFracSFR[-1])
+if(len(x_in_t50) != 0):
+    ax[2,0].axvline(x_in_t50[0], linestyle='dotted', lw=1.1, color='#734a4a', label='Input t50/t95')
+    ax[2,0].axvline(x_in_t95[0], linestyle='dotted', lw=1.1, color='#734a4a')
+    ax[1,0].axvline(x_in_t50[0], linestyle='dotted', lw=1.1, color='#734a4a')
+    ax[1,0].axvline(x_in_t95[0], linestyle='dotted', lw=1.1, color='#734a4a')
+    ax[0,0].axvline(x_in_t50[0], linestyle='dotted', lw=1.1, color='#734a4a')
+    ax[0,0].axvline(x_in_t95[0], linestyle='dotted', lw=1.1, color='#734a4a')
+else: 
+     ax[2,0].axvline(x_in_t95[0], linestyle='dotted', lw=1.1, color='#734a4a', label='Input t95')
+     ax[1,0].axvline(x_in_t95[0], linestyle='dotted', lw=1.1, color='#734a4a')
+     ax[0,0].axvline(x_in_t95[0], linestyle='dotted', lw=1.1, color='#734a4a')
 
-ax[2,0].axvline(x_in_t50[0], linestyle='dotted', lw=1.1, color='#734a4a', label='Input t50/t90')
-ax[2,0].axvline(x_in_t90[0], linestyle='dotted', lw=1.1, color='#734a4a')
-ax[1,0].axvline(x_in_t50[0], linestyle='dotted', lw=1.1, color='#734a4a')
-ax[1,0].axvline(x_in_t90[0], linestyle='dotted', lw=1.1, color='#734a4a')
-ax[0,0].axvline(x_in_t50[0], linestyle='dotted', lw=1.1, color='#734a4a')
-ax[0,0].axvline(x_in_t90[0], linestyle='dotted', lw=1.1, color='#734a4a')
-
-ax[2,0].plot(input_massFracLBT, input_massFracSFR/input_massFracSFR[-1], color='black', lw=1.5)
+ax[2,0].plot(inputmassLBT, inputmassPercent, color='black', lw=1.5)
 
 k = 0
 while k < 3:
@@ -553,7 +562,7 @@ while k < 3:
 
     ax[1,k].set_ylabel("SFH Time Derivative " + r'$[M_{\odot} yr^{-2}]$', fontsize=11)
     ax[1,k].set_xlabel('Lookback Time [Gyr]', fontsize=11)
-    ax[1,k].axhline(quenching_threshhold, linestyle='--', color='black', label='Normalized quenching threshold' if outroot_index == 0 else "") # Quench threshold
+    ax[1,k].axhline(quenching_threshhold, linestyle='--', color='black', label='-100 $M_{\odot} yr^{-2}$ quenching threshold' if outroot_index == 0 else "") # Quench threshold
     ax[1,k].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
     ax[1,k].set_ylim(-1000, 1000)
     ax[1,k].legend(loc='best', fontsize=11)
@@ -566,28 +575,4 @@ fig.tight_layout()
 fig.savefig(plotdir+filename, bbox_inches='tight')
 
 print('saved plot to '+plotdir+filename) 
-print('Made giant t90/t50 comparison plot')
-
-'''
-# and now we want to write out all of these outputs so we can have them for later!
-# make a lil class that will just save all of the outputs we give it, so that it's easy to pack all these together later
-class Output:
-    def __init__(self, **kwds):
-        self.__dict__.update(kwds)
-
-# gather all the spectra (obs AND best-fit plus uncertainties)
-# spec_obs = np.stack((wspec, obs['spectrum'], obs['unc'])) # maggies
-# spec_fit = np.stack((wspec, spec16, spec50, spec84)) # maggies
-phot_obs = np.stack((wphot, obs['maggies']))
-phot_fit = np.stack((wphot, phot16, phot50, phot84))
-
-
-# make an instance of the output structure for this dict
-out = Output(phot_obs=phot_obs, phot_fit=phot_fit, sfrs=sfrPercent, mass=massPercent, 
-    objname=str(obs['objid']), massfrac=massFrac, percentiles=percentiles, massTot=totmassPercent)
-
-# and save it
-if not os.path.exists('dicts/'):
-    os.mkdir('dicts/')
-np.savez('dicts/'+str(obs['objid'])+'.npz', res=out)
-'''
+print('Made giant t95/t50 comparison plot')

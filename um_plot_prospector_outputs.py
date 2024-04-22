@@ -523,8 +523,8 @@ def quenching_timescales(x, y, timescale):
 
     return newx, dy_dx
     
-x_d_input, y_d_input = quenching_timescales(input_lbt, input_sfh, 0.1)
-x_d_output, y_d_output = quenching_timescales(output_lbt, output_sfh, 0.1)
+x_d_input, y_d_input = quenching_timescales(input_lbt, input_sfh, 0.005)
+x_d_output, y_d_output = quenching_timescales(output_lbt, output_sfh, 0.005)
 
 # Use intersect package to determine where derivatives intersect the quenching threshold
 # Finding the max and minimum, then normalizing the threshold 
@@ -584,19 +584,20 @@ traplbt = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)
 for n in range(len(trapsfh)-1):
     traplbtprep = np.array([traplbt[n], traplbt[n+1]])
     trapsfhprep = np.array([trapsfh[n], trapsfh[n+1]])
-    if(len(input_massFracSFR) == 0):
-        input_massFracSFR = np.append(input_massFracSFR, trap(traplbtprep,trapsfhprep))
+    if(len(input_massFracSFR) == 0): # accumulate mass
+        input_massFracSFR = np.append(input_massFracSFR, trap(traplbtprep*10**9,trapsfhprep))
     else:
-        input_massFracSFR = np.append(input_massFracSFR, input_massFracSFR[-1] + trap(traplbtprep,trapsfhprep))
+        input_massFracSFR = np.append(input_massFracSFR, input_massFracSFR[-1] + trap(traplbtprep*10**9,trapsfhprep))
     
-inputmassPercent = np.abs((input_massFracSFR)/input_massFracSFR[len(input_massFracSFR)-1])
+input_massFracSFR = np.log10(-input_massFracSFR)
+inputmassPercent = input_massFracSFR/input_massFracSFR[len(input_massFracSFR)-1]
 inputmassLBT = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)[1:len(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)]
 
 ax[3].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='grey', alpha=.5)
 ax[3].plot(lbt_interp,massPercent[:,2],color='black',lw=1.5,label='Output SFH')
 ax[3].plot(inputmassLBT, inputmassPercent, color='blue',lw=1.5,label='Input SFH')
 
-print("Total input mass from integral: " + str(-input_massFracSFR[-1]) + ", known input mass: " + str(obs['logM']))
+print("Total input mass from integral: " + str(input_massFracSFR[len(input_massFracSFR)-1]) + ", known input mass: " + str(obs['logM']))
 print("Total output mass from massPercent: " + str(np.log10(totmassPercent[:,2][0])) + ", known output mass: " + str(percentiles['logmass'][1]))
 
 # t50, t90 - intersection function
@@ -608,19 +609,19 @@ x_rec_t50, y = intersection_function(lbt_interp, np.full(len(massPercent[:,2]), 
 x_rec_t95, y = intersection_function(lbt_interp, np.full(len(massPercent[:,2]), 0.95), massPercent[:,2])
 
 # plot t50, 590
-ax[3].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='blue')
+#ax[3].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='blue')
 ax[3].axvline(x_in_t95[0], linestyle='dotted', lw=1, color='blue')
-ax[3].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='black')
+#ax[3].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='black')
 ax[3].axvline(x_rec_t95[0], linestyle='dotted', lw=1, color='black')
 
-ax[1].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='blue')
+#ax[1].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='blue')
 ax[1].axvline(x_in_t95[0], linestyle='dotted', lw=1, color='blue')
-ax[1].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='black')
+#ax[1].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='black')
 ax[1].axvline(x_rec_t95[0], linestyle='dotted', lw=1, color='black')
 
-ax[2].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='blue')
+#ax[2].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='blue')
 ax[2].axvline(x_in_t95[0], linestyle='dotted', lw=1, color='blue')
-ax[2].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='black')
+#ax[2].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='black')
 ax[2].axvline(x_rec_t95[0], linestyle='dotted', lw=1, color='black')
 
 ax[3].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)

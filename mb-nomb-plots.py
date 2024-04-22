@@ -49,22 +49,22 @@ cosmo = FlatLambdaCDM(H0=70, Om0=.3)
 if len(sys.argv) > 0:
     objid = str(sys.argv[1]) # example: 559120319
 
-plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/plots-mb-nomb/'
+plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/final-plots/mb-nomb/z5/'
 
 map_bool = False # would be better to have this as a command line prompt
 # if true, plots MAP spectra + photometry. if false, plots median spectra + photometry
 
 # Retrieve correct mcmc files for mb + nomb
 root = '/Users/michpark/JWST_Programs/mockgalaxies/final/'
-for files in os.walk(root + 'z3mb/'):
+for files in os.walk(root + 'z5mb/'):
         for filename in files[2]:
             if objid in filename:
-                name_path = os.path.join(root + 'z3mb/',filename)
+                name_path = os.path.join(root + 'z5mb/',filename)
                 outroot_mb = name_path
-for files in os.walk(root + 'z3nomb/'):
+for files in os.walk(root + 'z5nomb/'):
         for filename in files[2]:
             if objid in filename:
-                name_path = os.path.join(root + 'z3nomb/',filename)
+                name_path = os.path.join(root + 'z5nomb/',filename)
                 outroot_nomb = name_path        
 
 print('Making plots for...')
@@ -182,7 +182,7 @@ if not os.path.exists(plotdir+'sfh'):
     
 #check to see if duplicates exist
 counter=0
-filename = objid + '_z3_{}.pdf' #defines filename for all objects
+filename = objid + '_z5_{}.pdf' #defines filename for all objects
 while os.path.isfile(plotdir+'sfh/'+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made
@@ -198,8 +198,8 @@ for outroot_index, outroot in enumerate(outroot_array):
     res, obs, mod = results_from("{}".format(outroot), dangerous=True) 
     sps = get_sps(res)
 
-    gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-    spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+    gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+    spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
 
     print('Object ID: ' + str(obs['objid']))
@@ -422,7 +422,7 @@ for outroot_index, outroot in enumerate(outroot_array):
     inset_ax.set_xlabel('')
     inset_ax.set_ylabel('')
     inset_ax.set_yticks([])
-    inset_ax.set_xlim((obs['zred'] - 1.20,obs['zred']+ 0.25))
+    inset_ax.set_xlim((obs['zred'] - 1.20,obs['zred']+ 1.2))
     
     # calculate interpolated SFR and cumulative mass  
     # with each likelihood draw you can convert the agebins from units of lookback time to units of age 
@@ -490,6 +490,7 @@ for outroot_index, outroot in enumerate(outroot_array):
     ######## Derivative for SFH ###########
     # Eliminates 0 values from the SFHs, which can skew the derivative; limits quenchtime search for output
     # SFH to only be within input SFH's range
+    '''
     input_mask = [i for i in enumerate(um_sfh) if i == 0]
     output_mask = [i for i, n in enumerate(sfrPercent[:,2]) if n == 0]
 
@@ -525,7 +526,6 @@ for outroot_index, outroot in enumerate(outroot_array):
     x_d_input, y_d_input = quenching_timescales(input_lbt, input_sfh, 0.1)
     x_d_output, y_d_output = quenching_timescales(output_lbt, output_sfh, 0.1)
     
-
     # Use intersect package to determine where derivatives intersect the quenching threshold
     quenching_threshhold = -np.abs(max(input_sfh)-min(input_sfh)/0.5) #originally -500
     x_i, y_i = intersection_function(x_d_input, np.full(len(x_d_input), quenching_threshhold), y_d_input)
@@ -556,7 +556,7 @@ for outroot_index, outroot in enumerate(outroot_array):
             ax[2].axvline(x_o[0], linestyle='--', lw=1, color='navy')
         else: 
             ax[2].plot(x_d_output, y_d_output, '-o', color='navy', lw=1.5, label='Broad only SFH time derivative (does not pass quenching threshold)')
-    
+    '''
     print("For loop completed")
 
 ax[1].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)

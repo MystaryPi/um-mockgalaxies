@@ -459,8 +459,8 @@ label_counter = 0
 while label_counter < 3:
     label = "Inst. = " + str(truncate(sfh_inst_all[label_counter],3)) + "\nAve. = " + str(truncate(sfh_ave_all[label_counter],3))
     ax[label_counter].text(-0.03, sfh_inst_all[label_counter], label, c=colors[label_counter])
-    ax[label_counter].plot(0.1, sfh_inst_all[label_counter], "*", c=colors[label_counter], marker_size = 20)
-    ax[label_counter].plot(0.1, sfh_ave_all[label_counter], "D", c=colors[label_counter], marker_size = 20)
+    ax[label_counter].scatter(0.1, sfh_inst_all[label_counter], s=140, marker="*", c=colors[label_counter])
+    ax[label_counter].scatter(0.1, sfh_ave_all[label_counter], s=80, marker="D", c=colors[label_counter])
     label_counter += 1
 
 
