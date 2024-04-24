@@ -177,8 +177,8 @@ for directory_index, directory in enumerate(directory_array):
             #print('Making plots for '+str(mcmcfile))
 
             res, obs, mod = results_from("{}".format(mcmcfile), dangerous=True)
-            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
             sps = get_sps(res)
 
@@ -407,9 +407,10 @@ ax[1,0].set_xlabel(r'Input $t50$ [Gyr]')
 
 # input vs. recovered t95
 ax[1,1].scatter(results_nomb[:,2], results_nomb[:,3], c=zred_array[1], ec='k', norm=divnorm, cmap='bwr')
-ax[1,1].axline((0, 0), slope=1., ls='--', color='black', lw=2)
+ax[1,1].axline((0,0), slope=1., ls='--', color='black', lw=2)
 ax[1,1].set_ylabel(r'Recovered $t95$ [Gyr]')
 ax[1,1].set_xlabel(r'Input $t95$ [Gyr]')
+ax[1,1].axline((0, percentiles['tlast_fraction'][1]*cosmo.age(obs['zred']).value), slope=0., ls='--', color='black', lw=2)
 
 # input vs. recovered t95-t50
 ax[1,2].scatter(results_nomb[:,2]-results_nomb[:,0], results_mb[:,3]-results_mb[:,1], c=zred_array[1], ec='k', norm=divnorm, cmap='bwr')

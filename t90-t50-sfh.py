@@ -194,7 +194,7 @@ while os.path.isfile(plotdir+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made
 
-fig, ax = plt.subplots(3,3,figsize=(15,12))
+fig, ax = plt.subplots(2,3,figsize=(15,12))
 
 for outroot_index, outroot in enumerate(outroot_array):
     # outroot_index = 0 is MB, outroot_index = 1 is no MB
@@ -393,6 +393,7 @@ for outroot_index, outroot in enumerate(outroot_array):
     ######## Derivative for SFH ###########
     # Eliminates 0 values from the SFHs, which can skew the derivative; limits quenchtime search for output
     # SFH to only be within input SFH's range
+    '''
     input_zeromask = [i for i in enumerate(um_sfh) if i == 0]
     output_zeromask = [i for i, n in enumerate(sfrPercent[:,2]) if n == 0]
 
@@ -479,7 +480,7 @@ for outroot_index, outroot in enumerate(outroot_array):
             ax[2,2].axvline(outquench[0], linestyle='--', lw=1.7, color='navy')
         else: 
             ax[1,2].plot(x_d_output, y_d_output, '-o', color='navy', lw=1.5, label='Broad only does not pass quenching threshold')
-    
+    '''
     # CUMULATIVE MASS FRACTION
     # t50, t95 - intersection function
     x_rec_t50, y = intersection_function(lbt_interp, np.full(len(lbt_interp), 0.5), massPercent[:,2])
@@ -487,23 +488,19 @@ for outroot_index, outroot in enumerate(outroot_array):
 
     # plot mass frac
     if(outroot_index == 0):
-        ax[2,1].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='maroon', alpha=.3)
-        ax[2,1].plot(lbt_interp, massPercent[:,2], color='maroon', lw=1.5)
-        ax[2,1].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#b44a39', label='Broad+MB t50/t95')
-        ax[2,1].axvline(x_rec_t95[0], linestyle='dotted', lw=1.1, color='#b44a39')
+        ax[1,1].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='maroon', alpha=.3)
+        ax[1,1].plot(lbt_interp, massPercent[:,2], color='maroon', lw=1.5)
+        ax[1,1].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#b44a39', label='Broad+MB t50/t95')
+        ax[1,1].axvline(x_rec_t95[0], linestyle='dotted', lw=1.1, color='#b44a39')
         ax[0,1].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#b44a39')
         ax[0,1].axvline(x_rec_t95[0], linestyle='dotted', lw=1.1, color='#b44a39')
-        ax[1,1].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#b44a39')
-        ax[1,1].axvline(x_rec_t95[0], linestyle='dotted', lw=1.1, color='#b44a39')
     if(outroot_index == 1):
-        ax[2,2].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='navy', alpha=.3)
-        ax[2,2].plot(lbt_interp, massPercent[:,2], color='navy', lw=1.5)
-        ax[2,2].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#5273ee', label='Broad only t50/t95')
-        ax[2,2].axvline(x_rec_t95[0], linestyle='dotted', lw=1.1, color='#5273ee')
+        ax[1,2].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='navy', alpha=.3)
+        ax[1,2].plot(lbt_interp, massPercent[:,2], color='navy', lw=1.5)
+        ax[1,2].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#5273ee', label='Broad only t50/t95')
+        ax[1,2].axvline(x_rec_t95[0], linestyle='dotted', lw=1.1, color='#5273ee')
         ax[0,2].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#5273ee')
         ax[0,2].axvline(x_rec_t95[0], linestyle='dotted', lw=1.1, color='#5273ee')
-        ax[1,2].axvline(x_rec_t50[0], linestyle='dotted', lw=1.1, color='#5273ee')
-        ax[1,2].axvline(x_rec_t95[0], linestyle='dotted', lw=1.1, color='#5273ee')
     
     print("For loop completed")
 
@@ -519,7 +516,7 @@ for n in range(len(trapsfh)-1):
     else:
         input_massFracSFR = np.append(input_massFracSFR, input_massFracSFR[-1] + trap(traplbtprep*10**9,trapsfhprep))
     
-input_massFracSFR = np.log10(-input_massFracSFR)
+input_massFracSFR = -input_massFracSFR
 inputmassPercent = input_massFracSFR/input_massFracSFR[len(input_massFracSFR)-1]
 inputmassLBT = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)[1:len(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)]
 
@@ -527,27 +524,20 @@ inputmassLBT = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)
 x_in_t50, y = intersection_function(inputmassLBT, np.full(len(inputmassLBT), 0.5), inputmassPercent)
 x_in_t95, y = intersection_function(inputmassLBT, np.full(len(inputmassLBT), 0.95), inputmassPercent)
 
-if(len(x_in_t50) != 0):
-    ax[2,0].axvline(x_in_t50[0], linestyle='dotted', lw=1.1, color='#734a4a', label='Input t50/t95')
-    ax[2,0].axvline(x_in_t95[0], linestyle='dotted', lw=1.1, color='#734a4a')
-    ax[1,0].axvline(x_in_t50[0], linestyle='dotted', lw=1.1, color='#734a4a')
-    ax[1,0].axvline(x_in_t95[0], linestyle='dotted', lw=1.1, color='#734a4a')
-    ax[0,0].axvline(x_in_t50[0], linestyle='dotted', lw=1.1, color='#734a4a')
-    ax[0,0].axvline(x_in_t95[0], linestyle='dotted', lw=1.1, color='#734a4a')
-else: 
-     ax[2,0].axvline(x_in_t95[0], linestyle='dotted', lw=1.1, color='#734a4a', label='Input t95')
-     ax[1,0].axvline(x_in_t95[0], linestyle='dotted', lw=1.1, color='#734a4a')
-     ax[0,0].axvline(x_in_t95[0], linestyle='dotted', lw=1.1, color='#734a4a')
+ax[1,0].axvline(x_in_t50[0], linestyle='dotted', lw=1.1, color='#734a4a', label='Input t50/t95')
+ax[1,0].axvline(x_in_t95[0], linestyle='dotted', lw=1.1, color='#734a4a')
+ax[0,0].axvline(x_in_t50[0], linestyle='dotted', lw=1.1, color='#734a4a')
+ax[0,0].axvline(x_in_t95[0], linestyle='dotted', lw=1.1, color='#734a4a')
 
-ax[2,0].plot(inputmassLBT, inputmassPercent, color='black', lw=1.5)
+ax[1,0].plot(inputmassLBT, inputmassPercent, color='black', lw=1.5)
 
 k = 0
 while k < 3:
-    ax[2,k].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
-    ax[2,k].set_ylabel('Cumulative Mass Fraction', fontsize=11)
-    ax[2,k].legend(fontsize=11)
-    ax[2,k].set_xlabel('Lookback Time [Gyr]', fontsize=11)
-    ax[2,k].set_ylim(0,1)
+    ax[1,k].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
+    ax[1,k].set_ylabel('Cumulative Mass Fraction', fontsize=11)
+    ax[1,k].legend(fontsize=11)
+    ax[1,k].set_xlabel('Lookback Time [Gyr]', fontsize=11)
+    ax[1,k].set_ylim(0,1)
 
     ax[0,k].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
     ax[0,k].set_yscale('log')
@@ -557,7 +547,7 @@ while k < 3:
     ax[0,k].set_ylabel('SFR [' + r'$M_{\odot} /yr$' + ']', fontsize=11)
     #ax[1].set_xlabel('years before observation [Gyr]')
     ax[0,k].set_xlabel('Lookback Time [Gyr]', fontsize=11)
-
+    '''
     ax[1,k].set_ylabel("SFH Time Derivative " + r'$[M_{\odot} yr^{-2}]$', fontsize=11)
     ax[1,k].set_xlabel('Lookback Time [Gyr]', fontsize=11)
     ax[1,k].axhline(quenching_threshhold, linestyle='--', color='black', label='-100 $M_{\odot} yr^{-2}$ quenching threshold' if outroot_index == 0 else "") # Quench threshold
@@ -565,6 +555,7 @@ while k < 3:
     ax[1,k].set_ylim(-1000, 1000)
     ax[1,k].legend(loc='best', fontsize=11)
     ax[1,k].tick_params(axis='both', which='major', labelsize=9)
+    '''
     k += 1
 
 plt.show()

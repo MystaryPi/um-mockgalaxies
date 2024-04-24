@@ -154,8 +154,8 @@ print("{}".format(outroot))
 sps = get_sps(res)
 
 #obs = (np.load('obs-z3/umobs_'+str(obs_mcmc['objid'])+å'.npz', allow_pickle=True))['obs']
-gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
 
 print('Object ID: ' + str(obs['objid']))
@@ -274,7 +274,7 @@ print('Done calculating spectra')
 c = 2.99792458e18
 
 # NORMAL PLOTTING
-fig, ax = plt.subplots(4,1,figsize=(8,14))
+fig, ax = plt.subplots(3,1,figsize=(8,14))
 
 # wphot + wspec both observed
 '''
@@ -485,6 +485,7 @@ print('Finished SFH')
 ######## Derivative for SFH ###########
 # Eliminates 0 values from the SFHs, which can skew the derivative; limits quenchtime search for output
 # SFH to only be within input SFH's range
+'''
 input_mask = [i for i in enumerate(um_sfh) if i == 0]
 output_mask = [i for i, n in enumerate(sfrPercent[:,2]) if n == 0]
 
@@ -561,7 +562,7 @@ ax[2].legend(loc='best', fontsize=9)
 ax[2].tick_params(axis='both', which='major', labelsize=10)
 
 print('Finished derivative plot')
-
+'''
 # CUMULATIVE MASS FRACTION
 # plot mass frac
 # also need to find input oof
@@ -589,13 +590,13 @@ for n in range(len(trapsfh)-1):
     else:
         input_massFracSFR = np.append(input_massFracSFR, input_massFracSFR[-1] + trap(traplbtprep*10**9,trapsfhprep))
     
-input_massFracSFR = np.log10(-input_massFracSFR)
+input_massFracSFR = -input_massFracSFR
 inputmassPercent = input_massFracSFR/input_massFracSFR[len(input_massFracSFR)-1]
 inputmassLBT = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)[1:len(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)]
 
-ax[3].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='grey', alpha=.5)
-ax[3].plot(lbt_interp,massPercent[:,2],color='black',lw=1.5,label='Output SFH')
-ax[3].plot(inputmassLBT, inputmassPercent, color='blue',lw=1.5,label='Input SFH')
+ax[2].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='grey', alpha=.5)
+ax[2].plot(lbt_interp,massPercent[:,2],color='black',lw=1.5,label='Output SFH')
+ax[2].plot(inputmassLBT, inputmassPercent, color='blue',lw=1.5,label='Input SFH')
 
 print("Total input mass from integral: " + str(input_massFracSFR[len(input_massFracSFR)-1]) + ", known input mass: " + str(obs['logM']))
 print("Total output mass from massPercent: " + str(np.log10(totmassPercent[:,2][0])) + ", known output mass: " + str(percentiles['logmass'][1]))
@@ -609,26 +610,21 @@ x_rec_t50, y = intersection_function(lbt_interp, np.full(len(massPercent[:,2]), 
 x_rec_t95, y = intersection_function(lbt_interp, np.full(len(massPercent[:,2]), 0.95), massPercent[:,2])
 
 # plot t50, 590
-#ax[3].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='blue')
-ax[3].axvline(x_in_t95[0], linestyle='dotted', lw=1, color='blue')
-#ax[3].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='black')
-ax[3].axvline(x_rec_t95[0], linestyle='dotted', lw=1, color='black')
-
-#ax[1].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='blue')
-ax[1].axvline(x_in_t95[0], linestyle='dotted', lw=1, color='blue')
-#ax[1].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='black')
-ax[1].axvline(x_rec_t95[0], linestyle='dotted', lw=1, color='black')
-
-#ax[2].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='blue')
+ax[2].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='blue')
 ax[2].axvline(x_in_t95[0], linestyle='dotted', lw=1, color='blue')
-#ax[2].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='black')
+ax[2].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='black')
 ax[2].axvline(x_rec_t95[0], linestyle='dotted', lw=1, color='black')
 
-ax[3].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
-ax[3].set_ylabel('Cumulative Mass Fraction')
-ax[3].legend()
-ax[3].set_xlabel('Lookback Time [Gyr]')
-ax[3].set_ylim(0,1)
+ax[1].axvline(x_in_t50[0], linestyle='dotted', lw=1, color='blue')
+ax[1].axvline(x_in_t95[0], linestyle='dotted', lw=1, color='blue')
+ax[1].axvline(x_rec_t50[0], linestyle='dotted', lw=1, color='black')
+ax[1].axvline(x_rec_t95[0], linestyle='dotted', lw=1, color='black')
+
+ax[2].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
+ax[2].set_ylabel('Cumulative Mass Fraction')
+ax[2].legend()
+ax[2].set_xlabel('Lookback Time [Gyr]')
+ax[2].set_ylim(0,1)
 
 plt.show()
 # save plot
@@ -640,7 +636,7 @@ fig.savefig(plotdir+'sfh/' + filename, bbox_inches='tight')
 print('saved sfh to '+plotdir+'sfh/'+filename) 
 #plt.close(fig)
 print('Made SFH plot')
-'''
+
 # and now we want to write out all of these outputs so we can have them for later!
 # make a lil class that will just save all of the outputs we give it, so that it's easy to pack all these together later
 class Output:
@@ -662,4 +658,4 @@ out = Output(phot_obs=phot_obs, phot_fit=phot_fit, sfrs=sfrPercent, mass=massPer
 if not os.path.exists('dicts/'):
     os.mkdir('dicts/')
 np.savez('dicts/'+str(obs['objid'])+'.npz', res=out)
-'''
+
