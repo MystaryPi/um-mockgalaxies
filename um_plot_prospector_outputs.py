@@ -154,8 +154,8 @@ print("{}".format(outroot))
 sps = get_sps(res)
 
 #obs = (np.load('obs-z3/umobs_'+str(obs_mcmc['objid'])+å'.npz', allow_pickle=True))['obs']
-gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
 
 print('Object ID: ' + str(obs['objid']))
@@ -211,20 +211,20 @@ imax = np.argmax(res['lnprobability'])
 theta_max = res['chain'][imax, :].copy()
 
 print('MAP value: {}'.format(theta_max))
-'''
 fig, axes = plt.subplots(len(theta_max), len(theta_max), figsize=(15,15))
 axes = um_cornerplot.allcorner(res['chain'].T, mod.theta_labels(), axes, show_titles=True, 
     span=[0.997]*len(mod.theta_labels()), weights=res.get("weights", None), 
     label_kwargs={"fontsize": 8}, tick_kwargs={"labelsize": 6}, title_kwargs={'fontsize':11}, truths=truth_array)
 
-
+#axes[5,5].set_xlim(())
 if not os.path.exists(plotdir+'corner'):
     os.mkdir(plotdir+'corner')    
 fig.savefig(plotdir+'corner/'+filename, bbox_inches='tight')  
 print('saved cornerplot to '+plotdir+filename)  
-plt.close(fig)    
+plt.show()
+
+#plt.close(fig)    
 print('Made cornerplot')
-'''
 
 ##############################################################################  
 
@@ -456,7 +456,7 @@ ax[1].plot(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_s
 #label='Output SFH (z = {0:.3f})'.format(mod.params['zred'][0])
 #ax[1].plot(t_plot, sfr_ml[::-1], 'g--', lw=2, label='Maximum Likelihood SFH') # MLE SFH
 #ax[1].plot([], [], ' ', label='Input mass: {0:.3f}, MLE output mass: {1:.3f}'.format(np.log10(mtot_init), np.log10(soln.x[9]))) # MLE MASS ESTIMATE
-
+ax[1].axvline(tflex_frac*cosmo.age(obs['zred']).value, color='orange', label="tflex fraction")
 ax[1].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
 ax[1].set_yscale('log')
 ax[1].legend(loc='best', fontsize=9)

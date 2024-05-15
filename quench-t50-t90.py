@@ -165,6 +165,7 @@ from um_prospector_param_file import updated_logsfr_ratios_to_masses_psb, update
 
 directory_array = [mb_directory, nomb_directory]
 zred_array = np.empty(shape=(2, len(os.listdir(mb_directory)))) 
+objid_array = np.zeros(len(os.listdir(mb_directory))
 
 for directory_index, directory in enumerate(directory_array):
     print("Current directory: " + str(directory)) # prints out directory we're currently iterating over
@@ -177,11 +178,11 @@ for directory_index, directory in enumerate(directory_array):
             #print('Making plots for '+str(mcmcfile))
 
             res, obs, mod = results_from("{}".format(mcmcfile), dangerous=True)
-            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z4p5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z4p5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
             sps = get_sps(res)
-
+            objid_array = np.append(objid_array, obs['objid'])
             print('----- Object ID: ' + str(obs['objid']) + ' -----')
         
             # obtain sfh from universemachine
@@ -410,7 +411,7 @@ ax[1,1].scatter(results_nomb[:,2], results_nomb[:,3], c=zred_array[1], ec='k', n
 ax[1,1].axline((0,0), slope=1., ls='--', color='black', lw=2)
 ax[1,1].set_ylabel(r'Recovered $t95$ [Gyr]')
 ax[1,1].set_xlabel(r'Input $t95$ [Gyr]')
-ax[1,1].axline((0, percentiles['tlast_fraction'][1]*cosmo.age(obs['zred']).value), slope=0., ls='--', color='black', lw=2)
+#ax[1,1].axline((0, percentiles['tlast_fraction'][1]*cosmo.age(obs['zred']).value), slope=0., ls='--', color='black', lw=2)
 
 # input vs. recovered t95-t50
 ax[1,2].scatter(results_nomb[:,2]-results_nomb[:,0], results_mb[:,3]-results_mb[:,1], c=zred_array[1], ec='k', norm=divnorm, cmap='bwr')

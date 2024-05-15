@@ -376,12 +376,16 @@ for outroot_index, outroot in enumerate(outroot_array):
     ######## SFH PLOTTING in LBT ##########
     # Convert x-axis from age to LBT
     ax[0, 0].plot(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, label='Input SFH' if outroot_index == 0 else "", color='black', lw=1.7, marker="o") # INPUT SFH
+    
     if(outroot_index == 0): # medium band
         ax[0, 1].plot(lbt_interp, sfrPercent[:,2], color='maroon', lw=1.5, label='Broad+MB SFH fit') 
         ax[0, 1].fill_between(lbt_interp, sfrPercent[:,1], sfrPercent[:,3], color='maroon', alpha=.3)
+        ax[0, 1].axvline(tflex_frac*cosmo.age(obs['zred']).value, color='black', label="tlast fraction")
     if(outroot_index == 1): # no medium band
         ax[0, 2].plot(lbt_interp, sfrPercent[:,2], color='navy', lw=1.5, label='Broad only SFH fit') 
         ax[0, 2].fill_between(lbt_interp, sfrPercent[:,1], sfrPercent[:,3], color='navy', alpha=.3)
+        ax[0, 2].axvline(tflex_frac*cosmo.age(obs['zred']).value, color='black', label="tlast fraction")
+        
     
     #label='Input SFH (z = {0:.3f})'.format(spsdict['zred'])
     #label='Output SFH (z = {0:.3f})'.format(mod.params['zred'][0])
