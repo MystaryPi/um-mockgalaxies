@@ -165,7 +165,7 @@ from um_prospector_param_file import updated_logsfr_ratios_to_masses_psb, update
 
 directory_array = [mb_directory, nomb_directory]
 zred_array = np.empty(shape=(2, len(os.listdir(mb_directory)))) 
-objid_array = np.zeros(len(os.listdir(mb_directory))
+objid_array = np.zeros(len(os.listdir(mb_directory)))
 
 for directory_index, directory in enumerate(directory_array):
     print("Current directory: " + str(directory)) # prints out directory we're currently iterating over
@@ -178,8 +178,8 @@ for directory_index, directory in enumerate(directory_array):
             #print('Making plots for '+str(mcmcfile))
 
             res, obs, mod = results_from("{}".format(mcmcfile), dangerous=True)
-            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z4p5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z4p5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
             sps = get_sps(res)
             objid_array = np.append(objid_array, obs['objid'])
@@ -438,7 +438,7 @@ if not os.path.exists(plotdir):
     os.mkdir(plotdir)
 
 counter=0
-filename = '{}_z2_quenchtest.pdf' #defines filename for all objects
+filename = '{}_z1_quenchtest.pdf' #defines filename for all objects
 while os.path.isfile(plotdir+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made

@@ -161,7 +161,7 @@ cosmo = FlatLambdaCDM(H0=70, Om0=.3)
 dust2_array = []
 dust_index_array = []
 zred_array = []
-
+objid_array = []
 fig, ax = plt.subplots(4,2,figsize=(9,9))
 from um_prospector_param_file import updated_logsfr_ratios_to_masses_psb, updated_psb_logsfr_ratios_to_agebins
 
@@ -171,11 +171,11 @@ for mcmcfile in os.listdir(directory):
         #print('Making plots for '+str(mcmcfile))
 
         res, obs, mod = results_from("{}".format(mcmcfile), dangerous=True)
-        gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z4p5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-        spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z4p5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+        gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+        spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
         sps = get_sps(res)
-
+        objid_array = np.append(objid_array, obs['objid'])
         print('----- Object ID: ' + str(obs['objid']) + ' -----')
     
         # obtain sfh from universemachine
@@ -238,7 +238,7 @@ for mcmcfile in os.listdir(directory):
         for i in range(flatchain.shape[0]):
             allsfrs_interp[i,:] = stepInterp(allagebins_lbt[i,:], allsfrs[i,:], lbt_interp)
             allsfrs_interp[i,-1] = 0
-            masscum_interp[i,:] = 1 - (np.cumsum(allsfrs_interp[i,:] * dt) / np.sum(allsfrs_interp[i,:] * dt))
+            masscum_interp[i,:] = 1 - (np.cumsum(allsfrs_interp[i,:] * dt) / np.nansum(allsfrs_interp[i,:] * dt))
             totmasscum_interp[i,:] = np.sum(allsfrs_interp[i,:] * dt) - (np.cumsum(allsfrs_interp[i,:] * dt))
 
             # now: let's also calculate this in terms of age of universe, not just LBT
@@ -363,7 +363,38 @@ for mcmcfile in os.listdir(directory):
         if len(x_i) != 0 and len(x_o) == 0:
             ax[3,0].plot(x_i[0], -0.5, marker='.', markersize=10, ls='', lw=2, markerfacecolor='orange',
                 alpha=0.7, markeredgecolor='orange')
-            
+                
+        # t50, t95 - intersection function
+        x_rec_t50, y = intersection_function(lbt_interp, np.full(len(lbt_interp), 0.5), massPercent[:,2])
+        x_rec_t95, y = intersection_function(lbt_interp, np.full(len(lbt_interp), 0.95), massPercent[:,2])
+        
+        # also need to find input oof
+        # Square interpolation - SFR(t1) and SFR(t2) are two snapshots, then for t<(t1+t2)/2 you assume SFR=SFR(t1) and t>(t1+t2)/2 you assume SFR=SFR(t2)
+        input_massFracSFR = []
+        input_massFracLBT = []
+        current_input_LBT = cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value
+        for n in range(len(um_sfh)-1):
+            input_massFracLBT = np.append(input_massFracLBT, current_input_LBT[n])
+            input_massFracLBT = np.append(input_massFracLBT, current_input_LBT[n]-((current_input_LBT[n]-current_input_LBT[n+1])/2)) # need to add halfway point
+            if(len(input_massFracSFR) == 0):
+                input_massFracSFR = np.append(input_massFracSFR, um_sfh[n])
+            else:
+                input_massFracSFR = np.append(input_massFracSFR, input_massFracSFR[-1] + um_sfh[n])
+
+            input_massFracSFR = np.append(input_massFracSFR, input_massFracSFR[-1]+um_sfh[n+1])
+
+        # t50, t95 - intersection function
+        x_in_t50, y = intersection_function(input_massFracLBT, np.full(len(input_massFracLBT), 0.5), input_massFracSFR/input_massFracSFR[-1])
+        x_in_t95, y = intersection_function(input_massFracLBT, np.full(len(input_massFracLBT), 0.95), input_massFracSFR/input_massFracSFR[-1])
+        
+        print("For " + str(obs['objid']) + ", we have input t50: " + str(x_in_t50[0]) + ", rec t50: " + str(x_rec_t50[0]) + ", input t95: " + str(x_in_t95[0]) + ", rec t95: " + str(x_rec_t95[0]))
+        
+        # t50 in, t50 rec, t95 in, t95 rec, my quench in, my quench out
+        if(first_iteration):
+            results = np.array([x_in_t50[0], x_rec_t50[0], x_in_t95[0], x_rec_t95[0]]).flatten()
+        else:
+            results = np.vstack([results, np.array([x_in_t50[0], x_rec_t50[0], x_in_t95[0], x_rec_t95[0]]).flatten()])  
+   
         
         first_iteration = False
          
@@ -436,9 +467,22 @@ filename = 'bigplot_freez3mb_{}.pdf' #defines filename for all objects
 while os.path.isfile(plotdir+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made
-fig.savefig(plotdir+filename, bbox_inches='tight')
+#fig.savefig(plotdir+filename, bbox_inches='tight')
   
 print('saved big plot to '+plotdir+filename) 
+
+# FIND OUTLIERS FOR Z95
+plt.figure()
+plt.plot(results[:,2], results[:,3], '.', markersize=10)
+plt.axline((0, 0), slope=1., ls='--', color='black', lw=2)
+plt.ylabel(r'Recovered $t95$ [Gyr]')
+plt.xlabel(r'Input $t95$ [Gyr]')
+
+print("OUTLIERS: ")
+for x in range(len(results[:,3])):
+    if results[:,3][x] > 2.5:
+        print(objid_array[x])
+        
 
 #plt.close(fig)
 
