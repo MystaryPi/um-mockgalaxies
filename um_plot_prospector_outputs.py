@@ -211,17 +211,23 @@ imax = np.argmax(res['lnprobability'])
 theta_max = res['chain'][imax, :].copy()
 
 print('MAP value: {}'.format(theta_max))
-fig, axes = plt.subplots(len(theta_max), len(theta_max), figsize=(15,15))
-axes = um_cornerplot.allcorner(res['chain'].T, mod.theta_labels(), axes, show_titles=True, 
-    span=[0.997]*len(mod.theta_labels()), weights=res.get("weights", None), 
-    label_kwargs={"fontsize": 8}, tick_kwargs={"labelsize": 6}, title_kwargs={'fontsize':11}, truths=truth_array)
+#fig, axes = plt.subplots(len(theta_max), len(theta_max), figsize=(15,15))
+fig, axes = plt.subplots(len(theta_max[3:8]), len(theta_max[3:8]), figsize=(10,10))
+axes = um_cornerplot.allcorner(res['chain'].T[3:8], mod.theta_labels()[3:8], axes, show_titles=True, 
+    span=[0.9]*len(mod.theta_labels()[3:8]), weights=res.get("weights", None), 
+    label_kwargs={"fontsize": 8}, tick_kwargs={"labelsize": 6}, title_kwargs={'fontsize':11}, truths=truth_array[3:8])
 
-#axes[5,5].set_xlim(())
+for diag in [0,1,2,3,4]:
+    start, end = axes[diag, diag].get_xlim()
+    axes[diag,diag].xaxis.set_ticks(np.arange(start, end, np.abs(start-end)/3), fontsize=6)
+    axes[diag,diag].xaxis.set_major_formatter(ticker.FormatStrFormatter('%0.1f'))
+
 if not os.path.exists(plotdir+'corner'):
     os.mkdir(plotdir+'corner')    
 fig.savefig(plotdir+'corner/'+filename, bbox_inches='tight')  
 print('saved cornerplot to '+plotdir+filename)  
-plt.show()
+#plt.show()
+
 
 #plt.close(fig)    
 print('Made cornerplot')
@@ -369,11 +375,18 @@ for iteration in range(flatchain.shape[0]):
     try:
         logmass = flatchain[iteration, mod.theta_index['massmet']][0] # not what we are using
     except:
-        logmass = flatchain[iteration, mod.theta_index["logmass"]]      
+        logmass = flatchain[iteration, mod.theta_index["logmass"]] 
+        
+    # temporarily set to EQUAL
+    #logr = np.array([0,0,0,0])
+    #logr_young = np.array([0])
+    #logr_old = np.array([1,0,0])
+    
     agebins = updated_psb_logsfr_ratios_to_agebins(logsfr_ratios=logr, agebins=mod.params['agebins'], 
         tlast_fraction=tlast_fraction, tflex_frac=tflex_frac, nflex=nflex, nfixed=nfixed, zred=zred)
     allagebins[iteration, :] = agebins
     dt = 10**agebins[:, 1] - 10**agebins[:, 0]
+    
     masses = updated_logsfr_ratios_to_masses_psb(logsfr_ratios=logr, logmass=logmass, agebins=agebins,
         logsfr_ratio_young=logr_young, logsfr_ratio_old=logr_old,
         tlast_fraction=tlast_fraction, tflex_frac=tflex_frac, nflex=nflex, nfixed=nfixed, zred=zred)
@@ -431,6 +444,33 @@ print(percentiles) # prints percentiles
 
 # mass fraction in the last Gyr
 massFrac = 1 - massPercent[lbt_interp==1, 1:].flatten()[::-1]  
+
+# Comparing samples with StudentT distribution
+print("Min of log sfr ratios OLD: " + str(np.argmin(res['chain'][i, mod.theta_index['logsfr_ratio_old']]) + 1)) # matches the lowest
+print("Min of log sfr ratios: " + str(np.argmin(res['chain'][i, mod.theta_index['logsfr_ratios']]) + 1)) # matches the lowest
+
+print("logr old: " + str(res['chain'][i, mod.theta_index['logsfr_ratio_old']]))
+print("logr: " + str(res['chain'][i, mod.theta_index['logsfr_ratios']]))
+
+# Automate the histogram making
+plt.interactive(True)
+plt.figure()
+dist = priors.StudentT(mean=0, scale=0.3, df=1) # same for logr + logr old
+samples = np.squeeze(np.array([dist.sample() for i in range(10000)]))
+plt.hist(samples, bins=np.arange(-5, 5, 0.2), color='blue', alpha=0.5, label='StudentT Dist.', density=True)
+plotindexold = 4+np.argmin(res['chain'][i, mod.theta_index['logsfr_ratio_old']]) + 1
+plt.hist(dynesty.utils.resample_equal(res['chain'], weights=res.get("weights", None))[:,plotindexold], bins=np.arange(-5,5,0.2), color='orange', alpha=0.5, label='Prior Samples', density=True)
+plt.title("logsfr_ratio_old_" + str(np.argmin(res['chain'][i, mod.theta_index['logsfr_ratio_old']]) + 1))
+plt.legend()
+
+plt.figure()
+plt.hist(samples, bins=np.arange(-5, 5, 0.2), color='blue', alpha=0.5, label='StudentT Dist.', density=True)
+plotindex = 7+np.argmin(res['chain'][i, mod.theta_index['logsfr_ratios']]) + 1
+plt.hist(dynesty.utils.resample_equal(res['chain'], weights=res.get("weights", None))[:,plotindex], bins=np.arange(-5,5,0.2), color='orange', alpha=0.5, label='Prior Samples', density=True)
+plt.title("logsfr_ratio_" + str(np.argmin(res['chain'][i, mod.theta_index['logsfr_ratios']]) + 1))
+plt.legend()
+
+STOP
 
 ###### SFH ADJUSTED PLOTS ##############
 # One-dimensional linear interpolation.
