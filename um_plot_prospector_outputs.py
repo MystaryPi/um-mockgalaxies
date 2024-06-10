@@ -207,7 +207,8 @@ plt.close()
 '''
 
 truth_array = [gal['z'], spsdict['logzsol'], spsdict['dust2'], obs['logM'], 0, 0, 0, 0, 0, 0, 0, 0, 0, spsdict['dust_index']]
-imax = np.argmax(res['lnprobability'])
+#imax = np.argmax(res['lnprobability'])
+imax = res['lnprobability'].argsort()[-4] # finds the second most likely value
 theta_max = res['chain'][imax, :].copy()
 
 print('MAP value: {}'.format(theta_max))
@@ -382,6 +383,11 @@ for iteration in range(flatchain.shape[0]):
     #logr_young = np.array([0])
     #logr_old = np.array([1,0,0])
     
+    # MAP SFH?
+    logr_young = np.array([theta_max[4]])
+    logr_old = theta_max[5:8]
+    logr = theta_max[8:12]
+    
     agebins = updated_psb_logsfr_ratios_to_agebins(logsfr_ratios=logr, agebins=mod.params['agebins'], 
         tlast_fraction=tlast_fraction, tflex_frac=tflex_frac, nflex=nflex, nfixed=nfixed, zred=zred)
     allagebins[iteration, :] = agebins
@@ -445,10 +451,7 @@ print(percentiles) # prints percentiles
 # mass fraction in the last Gyr
 massFrac = 1 - massPercent[lbt_interp==1, 1:].flatten()[::-1]  
 
-# Comparing samples with StudentT distribution
-print("Min of log sfr ratios OLD: " + str(np.argmin(res['chain'][i, mod.theta_index['logsfr_ratio_old']]) + 1)) # matches the lowest
-print("Min of log sfr ratios: " + str(np.argmin(res['chain'][i, mod.theta_index['logsfr_ratios']]) + 1)) # matches the lowest
-
+#### COMPARING posterior WITH STUDENTT DISTRIBUTION (prior)
 print("logr old: " + str(res['chain'][i, mod.theta_index['logsfr_ratio_old']]))
 print("logr: " + str(res['chain'][i, mod.theta_index['logsfr_ratios']]))
 
@@ -470,7 +473,6 @@ plt.hist(dynesty.utils.resample_equal(res['chain'], weights=res.get("weights", N
 plt.title("logsfr_ratio_" + str(np.argmin(res['chain'][i, mod.theta_index['logsfr_ratios']]) + 1))
 plt.legend()
 
-STOP
 
 ###### SFH ADJUSTED PLOTS ##############
 # One-dimensional linear interpolation.
