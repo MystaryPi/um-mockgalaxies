@@ -208,7 +208,7 @@ plt.close()
 
 truth_array = [gal['z'], spsdict['logzsol'], spsdict['dust2'], obs['logM'], 0, 0, 0, 0, 0, 0, 0, 0, 0, spsdict['dust_index']]
 #imax = np.argmax(res['lnprobability'])
-imax = res['lnprobability'].argsort()[-4] # finds the second most likely value
+imax = res['lnprobability'].argsort()[-2] # finds the ith most likely value
 theta_max = res['chain'][imax, :].copy()
 
 print('MAP value: {}'.format(theta_max))
