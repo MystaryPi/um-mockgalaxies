@@ -336,7 +336,7 @@ for j in range(1,len(res['lnprobability'])): #range(1,50)
 #### PLOTTING FROM A TXT FILE WITH THE t95 DRAWS ####
 plt.interactive(True)
 
-t95_total = np.loadtxt('thousanddraws.txt')
+t95_total = np.loadtxt('alldraws.txt')
 print(t95_total)
 
 # (if you decide to just run this in ipython)
