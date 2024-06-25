@@ -28,6 +28,7 @@ from prospect.io.read_results import traceplot, subcorner
 from wren_functions import modified_logsfr_ratios_to_agebins, modified_logsfr_ratios_to_masses_flex
 import fsps
 import math
+from matplotlib import cm, colors
 
 # set up cosmology
 cosmo = FlatLambdaCDM(H0=70, Om0=.3)
@@ -168,7 +169,6 @@ if not os.path.exists(plotdir):
     os.mkdir(plotdir)
     
 t95_total = np.zeros(15598) # manually put in the size
-from matplotlib import cm, colors
 ##############################################################################  
 for j in range(1,len(res['lnprobability'])): #range(1,50)
     print("### index = " + str(j) + " ###")
@@ -331,30 +331,51 @@ for j in range(1,len(res['lnprobability'])): #range(1,50)
     t95_total = np.vstack((t95_total, t95draw))
     #print("t95: " + str(x_rec_t95[0]))
 
-np.savetxt('alldraws.txt', t95_total)
+#np.savetxt('alldraws.txt', t95_total)
     
-'''
-t95_total = np.loadtxt('alldraws.txt')
+#### PLOTTING FROM A TXT FILE WITH THE t95 DRAWS ####
+plt.interactive(True)
+
+t95_total = np.loadtxt('thousanddraws.txt')
 print(t95_total)
 
-fig, ax = plt.subplots()  
+# (if you decide to just run this in ipython)
+# grab results (dictionary), the obs dictionary, and our corresponding models
+outroot = "/Users/michpark/JWST_Programs/mockgalaxies/final/z1mb/z1mb_mcmc_18_121086658_1706898391_mcmc.h5"
+res, obs, mod = results_from("{}".format(outroot), dangerous=True) # This displays the model parameters too
+sps = get_sps(res)
+
+gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+
+print('Object ID: ' + str(obs['objid']))
+
+print('Loaded results')
+
+# plot histograms for evenly spaced numbers of the first n draws 
 cmap = plt.get_cmap('viridis')
-t_indices = np.arange(0, 50, 1)
-color_gradients = cmap(t_indices)  
-norm = colors.Normalize(t_indices[0], t_indices[-1])
-draw_no = len(t95_total)
-for index in range(1, draw_no): # skip first row of zeroes
-    plt.hist(dynesty.utils.resample_equal(t95_total[index], weights=res.get("weights", None)), bins = np.linspace(0, 1, 30), histtype='step', density=True, color=cmap(norm(t_indices[index]))) # prior samples
+for draw_no in np.arange(len(t95_total)/5, len(t95_total)+len(t95_total)/5, len(t95_total)/5):
+    fig, ax = plt.subplots()  
+    draw_no = int(draw_no)
+    t_indices = np.arange(0, draw_no, 1)
+    
+    # colorbar to represent the draw number
+    color_gradients = cmap(t_indices)  
+    norm = colors.Normalize(t_indices[0], t_indices[-1])
 
-fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, label="Draw number")
+    for index in range(1, draw_no): # skip first row of zeroes
+        plt.hist(dynesty.utils.resample_equal(t95_total[index], weights=res.get("weights", None)), bins = np.linspace(0, 1, 30), histtype='step', density=True, color=cmap(norm(t_indices[index]))) # prior samples
 
-plt.title("t95 values for first " + str(draw_no) + " draws, " + str(obs['objid']))
-plt.xlabel('t95')
-plt.ylabel('Frequency')
-plt.axvline(x_in_t95[0], ls='--', label='Input SFH t95')
-plt.legend()
-plt.show()
-'''
+    fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, label="Draw number")
+
+    plt.title("t95 values for first " + str(draw_no) + " draws, " + str(obs['objid']))
+    plt.xlabel('t95')
+    plt.ylabel('Frequency')
+    #plt.axvline(x_in_t95[0], ls='--', label='Input SFH t95') #1.59766483 for the given object
+    plt.axvline(1.59766483, ls='--', label='Input SFH t95') # Hardcoded this in for now
+    plt.legend()
+    plt.show()
+
 
 '''
 plt.figure()
