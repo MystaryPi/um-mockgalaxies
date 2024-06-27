@@ -255,7 +255,7 @@ def convertMaggiesToFlam(w, maggies):
 #       lw=1.5, color='grey', alpha=0.7, zorder=10)    
 
 # Median spectrum
-ax[0].plot(allspec[0,:,ii], convertMaggiesToFlam(allspec[0,:,ii],spec50), label='Median spectrum',
+ax[0].plot(wspec, convertMaggiesToFlam(wspec, spec50), label='Median spectrum',
                    lw=1.5, color='grey', alpha=0.7, zorder=10) 
 ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], label='Model photometry',
          yerr = (convertMaggiesToFlam(wphot, phot84) - convertMaggiesToFlam(wphot,phot16))[obs['phot_mask']],
@@ -414,87 +414,6 @@ ax[1].set_ylabel('SFR [' + r'$M_{\odot} /yr$' + ']', fontsize = 10)
 ax[1].set_xlabel('Lookback Time [Gyr]', fontsize = 10)
 print('Finished SFH')
  
-######## Derivative for SFH ###########
-# Eliminates 0 values from the SFHs, which can skew the derivative; limits quenchtime search for output
-# SFH to only be within input SFH's range
-'''
-input_mask = [i for i in enumerate(um_sfh) if i == 0]
-output_mask = [i for i, n in enumerate(sfrPercent[:,2]) if n == 0]
-
-input_sfh = um_sfh[::-1]
-input_lbt = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)[::-1]
-output_sfh = sfrPercent[:,2]
-output_lbt = lbt_interp
-
-for i in sorted(input_mask, reverse=True):
-    input_sfh = np.delete(input_sfh, i)
-    input_lbt = np.delete(input_lbt, i)
-for i in sorted(output_mask, reverse=True):
-    output_sfh = np.delete(output_sfh, i)
-    output_lbt = np.delete(output_lbt, i)
-
-lbtLimit = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)[0]
-output_lbt_mask = [i for i, n in enumerate(output_lbt) if n > lbtLimit]
-for i in sorted(output_lbt_mask, reverse=True): # go in reverse order to prevent indexing error
-    output_sfh = np.delete(output_sfh, i)
-    output_lbt = np.delete(output_lbt, i)
-    
-# will take in the SFH and the time period over which you want to average
-# for each point, you determine its derivative by looking at a timescale SFR away
-def quenching_timescales(x, y, timescale):
-    from scipy import interpolate
-    
-    y_interp = interpolate.interp1d(x, y)
-    
-    # Calculate deriv of y (sfh) with respect to x (lbt)
-    dy_dx = np.array([])
-    newx = np.array([])
-    for i,lbtval in enumerate(x):
-        if(lbtval + (timescale/2) < x[-1] and lbtval - (timescale/2) > x[0]): #up to upper limit
-            dy_dx = np.append(dy_dx, -(y_interp(lbtval+(timescale/2)) - y_interp(lbtval - (timescale/2)))/timescale)
-            newx = np.append(newx, lbtval) #create a new lbt up to upper limit
-
-    return newx, dy_dx
-    
-x_d_input, y_d_input = quenching_timescales(input_lbt, input_sfh, 0.005)
-x_d_output, y_d_output = quenching_timescales(output_lbt, output_sfh, 0.005)
-
-# find where derivatives intersect quench threshhold
-#input_quenching_threshhold = -np.abs(max(input_sfh)-min(input_sfh))/0.5 #originally -500
-#output_quenching_threshhold = -np.abs(max(output_sfh)-min(output_sfh))/0.5 #originally -500
-input_quenching_threshhold = -100
-output_quenching_threshhold = -100
-x_i = x_d_input[np.argmin(np.abs(input_quenching_threshhold - y_d_input)))]
-x_i = x_d_output[np.argmin(np.abs(output_quenching_threshhold - y_d_output)))]
-
-# Plot derivative for input + output SFH, + quenching threshold from Wren's paper
-# Plot vertical lines for the quench time on the SFH plot
-if x_i != 0:
-    ax[2].plot(x_d_input, y_d_input, '-o', color='blue', lw=1.5, label='Input SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_i[0])))[2:-2] + ' Gyr)')
-    ax[1].axvline(x_i[0], linestyle='--', lw=1, color='blue')
-    ax[2].axvline(x_i[0], linestyle='--', lw=1, color='blue')
-else:
-    ax[2].plot(x_d_input, y_d_input, '-o', color='blue', lw=1.5, label='Input SFH time derivative (does not pass quenching threshold)')
-
-if len(x_o != 0):
-    ax[2].plot(x_d_output, y_d_output, '-o', color='black', lw=1.5, label='Output SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_o[0])))[2:-2] + ' Gyr)')
-    ax[1].axvline(x_o[0], linestyle='--', lw=1, color='black')
-    ax[2].axvline(x_o[0], linestyle='--', lw=1, color='black')
-else: 
-    ax[2].plot(x_d_output, y_d_output, '-o', color='black', lw=1.5, label='Output SFH time derivative (does not pass quenching threshold)')
-ax[2].axhline(input_quenching_threshhold, linestyle='--', color='black', label='-100 $M_{\odot} yr^{-2}$ quenching threshold') # Quench threshold
-#ax[2].axhline(output_quenching_threshhold, linestyle='--', color='black', label='-500 $M_{\odot} yr^{-2}$ quenching threshold (output SFH)') # Quench threshold
-
-ax[2].set_ylabel("SFH Time Derivative " + r'$[M_{\odot} yr^{-2}]$', fontsize=10)
-ax[2].set_xlabel('Lookback Time [Gyr]', fontsize=10)
-ax[2].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
-ax[2].set_ylim(-250, 250)
-ax[2].legend(loc='best', fontsize=9)
-ax[2].tick_params(axis='both', which='major', labelsize=10)
-
-print('Finished derivative plot')
-'''
-
 # CUMULATIVE MASS FRACTION
 # Square interpolation - SFR(t1) and SFR(t2) are two snapshots, then for t<(t1+t2)/2 you assume SFR=SFR(t1) and t>(t1+t2)/2 you assume SFR=SFR(t2)
 input_massFracSFR = np.array([])
