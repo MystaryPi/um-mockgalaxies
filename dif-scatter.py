@@ -147,7 +147,7 @@ if len(sys.argv) > 0:
     mb_directory = str(sys.argv[1]) # example: '/Users/michpark/JWST_Programs/mockgalaxies/final/z3mb/'
     nomb_directory = str(sys.argv[2]) # example: '/Users/michpark/JWST_Programs/mockgalaxies/final/z3nomb/'
   
-plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/debug-april/dif-scatter/'
+plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/final-plots/mb-nomb/sfh/'
 cosmo = FlatLambdaCDM(H0=70, Om0=.3)
 
 from um_prospector_param_file import updated_logsfr_ratios_to_masses_psb, updated_psb_logsfr_ratios_to_agebins
@@ -156,6 +156,7 @@ directory_array = [mb_directory, nomb_directory]
 dust2_array = np.empty(shape=(2, len(os.listdir(mb_directory)))) #input is always 0.2
 zred_array = np.empty(shape=(2, len(os.listdir(mb_directory)))) #input is set
 logmass_array = np.empty(shape=(2, len(os.listdir(mb_directory)))) #mb + nomb
+quenchtime_array = np.empty(shape=(2, len(os.listdir(mb_directory)))) #mb + nomb
 
 for directory_index, directory in enumerate(directory_array):
     # Iterate through mcmc files in the directory
@@ -166,8 +167,8 @@ for directory_index, directory in enumerate(directory_array):
             res, obs, mod = results_from("{}".format(mcmcfile), dangerous=True)
             print('----- Making plots for '+str(obs['objid']) + ' in ' + str(directory) + ' -----')
             
-            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
             sps = get_sps(res)
         
@@ -259,42 +260,35 @@ for directory_index, directory in enumerate(directory_array):
             percentiles = get_percentiles(res, mod) # stores 16 50 84 percentiles for dif parameters
             massFrac = 1 - massPercent[lbt_interp==1, 1:].flatten()[::-1]  
 
-            #print("obs logM: " + str(obs['logM']))
-            #print("um sfh integral mass: " + str(np.log10(trap(cosmo.age(gal['sfh'][:,0]).value*1e9, um_sfh))))
-            #print("output original:" + str(logmass_array[1]))
-            #print("output integral mass: " + str(np.log10(trap(cosmo.age(gal['sfh'][:,0]).value*1e9, sfhadjusted))))
-            #outputIntegralMass = np.log10(trap(cosmo.age(gal['sfh'][:,0]).value*1e9, sfhadjusted))
+            ################ CUMULATIVE MASS FRACTION ################
+            # Square interpolation - SFR(t1) and SFR(t2) are two snapshots, then for t<(t1+t2)/2 you assume SFR=SFR(t1) and t>(t1+t2)/2 you assume SFR=SFR(t2)
+            input_massFracSFR = np.array([])
+            trapsfh = um_sfh
+            traplbt = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)
+            # step through SFH, accumulating mass following square interpolation
+            for n in range(len(trapsfh)-1):
+                traplbtprep = np.array([traplbt[n], traplbt[n+1]])
+                trapsfhprep = np.array([trapsfh[n], trapsfh[n+1]])
+                if(len(input_massFracSFR) == 0): # accumulate mass
+                    input_massFracSFR = np.append(input_massFracSFR, trap(traplbtprep*10**9,trapsfhprep))
+                else:
+                    input_massFracSFR = np.append(input_massFracSFR, input_massFracSFR[-1] + trap(traplbtprep*10**9,trapsfhprep))
+    
+            # convert to mass percent
+            inputmassPercent = input_massFracSFR/input_massFracSFR[len(input_massFracSFR)-1]
+            inputmassLBT = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)[1:len(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)]
 
-            ##### SFR over meaningful timescale #####
-            '''
-            - 100 Myr - timescale that direct Halpha measurements are sensitive to
-            - Built function to take in SFH and an averaging timescale (default 100 Myr) 
-            - adds up the total mass formed in that timescale / timescale = average SFR
+            ################ t50/t95 calculations ################
+            # t50, t95 INPUT SFH
+            #x_in_t50 = inputmassLBT[np.argmin(np.abs(0.50 - inputmassPercent))]
+            x_in_t95 = inputmassLBT[np.argmin(np.abs(0.95 - inputmassPercent))]
 
-            timescale: most recent timescale (in Gyr)
-            lbt_interp: lookback time of FULL range
-            sfh: takes in SFH of FULL range
-            '''
-            '''
-            def averageSFR(lbt, sfh, timescale = 0.1):
-                # Obtain LBT + area under SFH over chosen range
-                timescaleLBT = [lbt[j]*1e9 for j in range(len(lbt)) if lbt[j] <= timescale]
-            
-                if(len(timescaleLBT) > 1):
-                    timescaleSFH = [sfh[j] for j in range(len(sfh)) if lbt[j] <= timescale]
-                    timescaleMass = np.abs(trap(np.array(timescaleLBT), np.array(timescaleSFH))) # in solar masses (yr*Msun/yr)
-                    return timescaleMass / (timescale*1e9)
-                else: # just one value for LBT (should only occur for input SFH, output SFH is fine resolution)
-                    k = len(lbt)
-                    return np.abs((sfh[k-2] - sfh[k-1])/2)+sfh[k-2] # get the last two values and average over (Msun/yr)
-
-            inputAverageSFR = averageSFR(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, timescale=0.1)
-            outputAverageSFR = averageSFR(lbt_interp, sfrPercent[:,2], timescale=0.1)
-            
-            print("For " + str(obs['objid']) + ", we have input INST: " + str(um_sfh[-1]) + ", input AVE: " + str(inputAverageSFR) + ", outputINST: " + str(sfrPercent[:,2][0]) + ", output AVE: " + str(outputAverageSFR))
-            '''
+            # t50, t95 OUTPUT SFH
+            #x_rec_t50 = lbt_interp[np.argmin(np.abs(0.50 - massPercent[:,2]))]
+            x_rec_t95 = lbt_interp[np.argmin(np.abs(0.50 - massPercent[:,2]))]
             
             logmass_array[directory_index][counter] = percentiles['logmass'][1]-obs['logM']
+            quenchtime_array[directory_index][counter] = x_rec_t95 - x_in_t95
                 
             '''
             #SFRs - get last value of um_sfh + 0th value of sfrpercent (both most recent values)
@@ -312,7 +306,7 @@ for directory_index, directory in enumerate(directory_array):
 # Below this point is plotting
 import matplotlib.colors as colors
 from matplotlib import cm
-fig, ax = plt.subplots(1,2,figsize=(9,5))
+fig, ax = plt.subplots(1,2,figsize=(11,5))
 
 # prettify the plot
 ax[0].set_title("Broad+MB")
@@ -321,6 +315,7 @@ ax[0].axline((0, 0), slope=0, ls='--', color='black', lw=2)
 ax[0].axvline(0, ls='--', color='black', lw=2)
 #ax[0].set_xlim(spsdict['zred']-0.35,spsdict['zred']+0.35)
 ax[0].set_xlabel(r'Difference in $log M_{stellar}$ (log $M_{sun}$)')
+#ax[0].set_xlabel(r'Difference in t95 (Gyr)')
 
 ax[1].set_title("Broad only")
 ax[1].set_ylabel("Difference in redshift")
@@ -328,26 +323,25 @@ ax[1].axline((0, 0), slope=0, ls='--', color='black', lw=2)
 ax[1].axvline(0, ls='--', color='black', lw=2)
 #ax[1].set_xlim(spsdict['zred']-0.35,spsdict['zred']+0.35)
 ax[1].set_xlabel(r'Difference in $log M_{stellar}$ (log $M_{sun}$)')
+#ax[1].set_xlabel(r'Difference in t95 (Gyr)')
 
-ax[0].set_xlim((-0.3, 0.4))
+#ax[0].set_xlim((-0.3, 0.4))
 ax[0].set_ylim((-0.5, 0.2))
-ax[1].set_xlim((-0.3, 0.4))
+#ax[1].set_xlim((-0.3, 0.4))
 ax[1].set_ylim((-0.5, 0.2))
 
 divnorm = colors.TwoSlopeNorm(vmin=-0.6, vcenter=0, vmax=0.6)
 
 counter = 0 # MB plot + NO MB plot
 while counter < 2:
-    im = ax[counter].scatter(logmass_array[counter],zred_array[counter], c=dust2_array[counter], ec='k', norm=divnorm, cmap='bwr')
+    im = ax[counter].scatter(logmass_array[counter], zred_array[counter], c=quenchtime_array[counter], ec='k', norm=divnorm, cmap='bwr')
     counter += 1 
     
 plt.tight_layout()
 fig.subplots_adjust(right=0.8)
 cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
-fig.colorbar(mappable=cm.ScalarMappable(norm=divnorm, cmap='bwr'), cax=cbar_ax, label="Difference in dust2", orientation="vertical") 
+fig.colorbar(mappable=cm.ScalarMappable(norm=divnorm, cmap='bwr'), cax=cbar_ax, label=r'Difference in t95 (Gyr))', orientation="vertical") 
 cbar_ax.set_yscale("linear")
-
-
 
 
 '''
@@ -373,7 +367,7 @@ if not os.path.exists(plotdir):
     os.mkdir(plotdir)
 
 counter=0
-filename = 'dif_{}_z2.pdf' #defines filename for all objects
+filename = 'dif_{}_z3.pdf' #defines filename for all objects
 while os.path.isfile(plotdir+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made

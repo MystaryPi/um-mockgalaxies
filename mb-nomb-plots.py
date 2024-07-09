@@ -49,22 +49,22 @@ cosmo = FlatLambdaCDM(H0=70, Om0=.3)
 if len(sys.argv) > 0:
     objid = str(sys.argv[1]) # example: 559120319
 
-plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/final-plots/mb-nomb/z5/'
+plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/final-plots/mb-nomb/'
 
 map_bool = False # would be better to have this as a command line prompt
 # if true, plots MAP spectra + photometry. if false, plots median spectra + photometry
 
 # Retrieve correct mcmc files for mb + nomb
 root = '/Users/michpark/JWST_Programs/mockgalaxies/final/'
-for files in os.walk(root + 'z5mb/'):
+for files in os.walk(root + 'z3mb/'):
         for filename in files[2]:
             if objid in filename:
-                name_path = os.path.join(root + 'z5mb/',filename)
+                name_path = os.path.join(root + 'z3mb/',filename)
                 outroot_mb = name_path
-for files in os.walk(root + 'z5nomb/'):
+for files in os.walk(root + 'z3nomb/'):
         for filename in files[2]:
             if objid in filename:
-                name_path = os.path.join(root + 'z5nomb/',filename)
+                name_path = os.path.join(root + 'z3nomb/',filename)
                 outroot_nomb = name_path        
 
 print('Making plots for...')
@@ -182,15 +182,15 @@ if not os.path.exists(plotdir+'sfh'):
     
 #check to see if duplicates exist
 counter=0
-filename = objid + '_z5_{}.pdf' #defines filename for all objects
+filename = objid + '_z3_side_{}.pdf' #defines filename for all objects
 while os.path.isfile(plotdir+'sfh/'+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made
 
-fig, ax = plt.subplots(3,1,figsize=(8,12))
+fig, ax = plt.subplots(1,2,figsize=(12,5))
 #create the inset axes for the zred 
 #inset_ax = fig.add_axes([0.16, 0.75, 0.2, 0.12]) # without tightlayout
-inset_ax = fig.add_axes([0.14, 0.84, 0.2, 0.12])
+inset_ax = fig.add_axes([0.09, 0.69, 0.13, 0.23]) # left of legend
 
 for outroot_index, outroot in enumerate(outroot_array):
     # outroot_index = 0 is MB, outroot_index = 1 is no MB
@@ -198,8 +198,8 @@ for outroot_index, outroot in enumerate(outroot_array):
     res, obs, mod = results_from("{}".format(outroot), dangerous=True) 
     sps = get_sps(res)
 
-    gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-    spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+    gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+    spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
 
     print('Object ID: ' + str(obs['objid']))
@@ -291,7 +291,7 @@ for outroot_index, outroot in enumerate(outroot_array):
             ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, mphot_map)[obs['phot_mask']], 
                      marker='s', markersize=10, alpha=0.6, ls='', lw=2, 
                      markerfacecolor='none', markeredgecolor='maroon', 
-                     markeredgewidth=2, zorder=5, label='Broad+MB model')
+                     markeredgewidth=2, zorder=5, label='UNCOVER+MB model')
             ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']],  
                       marker='o', markersize=7, ls='', lw=1.5, alpha=1, 
                       markerfacecolor='black', markeredgecolor='maroon', 
@@ -305,7 +305,7 @@ for outroot_index, outroot in enumerate(outroot_array):
             ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], 
                      marker='s', markersize=10, alpha=0.6, ls='', lw=2, 
                      markerfacecolor='none', markeredgecolor='maroon', 
-                     markeredgewidth=2, zorder=5, label='Broad+MB model')
+                     markeredgewidth=2, zorder=5, label='UNCOVER+MB model')
         
             ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']],  
                      marker='o', markersize=7, ls='', lw=1.5, alpha=1, 
@@ -324,7 +324,7 @@ for outroot_index, outroot in enumerate(outroot_array):
             ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, mphot_map)[obs['phot_mask']], 
                     marker='s', markersize=7, alpha=1, ls='', lw=2, 
                     markerfacecolor='black', markeredgecolor='navy', 
-                    markeredgewidth=3, zorder=5, label='Broad only model')
+                    markeredgewidth=3, zorder=5, label='UNCOVER only model')
             ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']], 
                      marker='o', markersize=10, ls='', lw=1.5, alpha=0.6, 
                      markerfacecolor='none', markeredgecolor='navy', 
@@ -341,16 +341,16 @@ for outroot_index, outroot in enumerate(outroot_array):
             ax[0].plot(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], 
                       marker='s', markersize=7, alpha=1, ls='', lw=2, 
                       markerfacecolor='black', markeredgecolor='navy', 
-                      markeredgewidth=3, zorder=5, label='Broad only model')
-    
+                      markeredgewidth=3, zorder=5, label='UNCOVER only model')
+
     # reincorporate scaling
-    ax[0].set_ylim((-0.2*norm, norm*2)) #top=1.5e-19 roughly
-    ax[0].set_xlim((1e3, 1e5))
-    ax[0].set_xlabel('Observed Wavelength (' + r'$\AA$' + ')', fontsize=10)
-    ax[0].set_ylabel(r"F$_\lambda$ in ergs/s/cm$^2$/AA", fontsize=10) # in flam units
+    ax[0].set_ylim((-0.1*norm, norm*3)) #top=1.5e-19 roughly
+    ax[0].set_xlim((2e3, 1e5))
+    ax[0].set_xlabel('Observed Wavelength [' + r'$\AA$' + ']', fontsize=11)
+    ax[0].set_ylabel(r"F$_\lambda$ [ergs/s/cm$^2$/$\AA$]", fontsize=11) # in flam units
     ax[0].set_xscale('log')
     
-    ax[0].set_title(str(int(obs['objid'])))
+    #ax[0].set_title(str(int(obs['objid'])))
     ax[0].tick_params(axis='both', which='major', labelsize=10)
     
     print('Made spectrum plot')
@@ -419,10 +419,11 @@ for outroot_index, outroot in enumerate(outroot_array):
     if(outroot_index == 1): #medium bands
         sns.kdeplot(zred_weighted, color='navy', label="$z_{phot}$", ax = inset_ax)
     
-    inset_ax.set_xlabel('')
+    inset_ax.set_xlabel('Redshift', fontsize=10)
     inset_ax.set_ylabel('')
     inset_ax.set_yticks([])
-    inset_ax.set_xlim((obs['zred'] - 1.20,obs['zred']+ 1.2))
+    inset_ax.set_xlim((obs['zred'] - 2, obs['zred']+ 1.2))
+    inset_ax.tick_params(labelsize=10)
     
     # calculate interpolated SFR and cumulative mass  
     # with each likelihood draw you can convert the agebins from units of lookback time to units of age 
@@ -474,10 +475,10 @@ for outroot_index, outroot in enumerate(outroot_array):
     # Convert x-axis from age to LBT
     ax[1].plot(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, label='True SFH' if outroot_index == 0 else "", color='black', lw=1.7, marker="o") # INPUT SFH
     if(outroot_index == 0): # medium band
-        ax[1].plot(lbt_interp, sfrPercent[:,2], color='maroon', lw=1.5, label='Broad+MB SFH fit') 
+        ax[1].plot(lbt_interp, sfrPercent[:,2], color='maroon', lw=1.5, label='UNCOVER+MB') 
         ax[1].fill_between(lbt_interp, sfrPercent[:,1], sfrPercent[:,3], color='maroon', alpha=.3)
     if(outroot_index == 1): # no medium band
-        ax[1].plot(lbt_interp, sfrPercent[:,2], color='navy', lw=1.5, label='Broad only SFH fit') 
+        ax[1].plot(lbt_interp, sfrPercent[:,2], color='navy', lw=1.5, label='UNCOVER only') 
         ax[1].fill_between(lbt_interp, sfrPercent[:,1], sfrPercent[:,3], color='navy', alpha=.3)
     
     #label='Input SFH (z = {0:.3f})'.format(spsdict['zred'])
@@ -487,103 +488,24 @@ for outroot_index, outroot in enumerate(outroot_array):
 
     print('Finished SFH')
  
-    ######## Derivative for SFH ###########
-    # Eliminates 0 values from the SFHs, which can skew the derivative; limits quenchtime search for output
-    # SFH to only be within input SFH's range
-    '''
-    input_mask = [i for i in enumerate(um_sfh) if i == 0]
-    output_mask = [i for i, n in enumerate(sfrPercent[:,2]) if n == 0]
-
-    input_sfh = um_sfh[::-1]
-    input_lbt = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)[::-1]
-    output_sfh = sfrPercent[:,2]
-    output_lbt = lbt_interp
-
-    for i in sorted(input_mask, reverse=True):
-        input_sfh = np.delete(input_sfh, i)
-        input_lbt = np.delete(input_lbt, i)
-    for i in sorted(output_mask, reverse=True):
-        output_sfh = np.delete(output_sfh, i)
-        output_lbt = np.delete(output_lbt, i)
-
-    # will take in the SFH and the time period over which you want to average
-    # for each point, you determine its derivative by looking at a timescale SFR away
-    def quenching_timescales(x, y, timescale):
-        from scipy import interpolate
-    
-        y_interp = interpolate.interp1d(x, y)
-    
-        # Calculate deriv of y (sfh) with respect to x (lbt)
-        dy_dx = np.array([])
-        newx = np.array([])
-        for i,lbtval in enumerate(x):
-            if(lbtval + timescale < x[-1]): #up to upper limit
-                dy_dx = np.append(dy_dx, -(y_interp(lbtval+timescale) - y[i])/timescale)
-                newx = np.append(newx, lbtval) #create a new lbt up to upper limit
-
-        return newx, dy_dx
-    
-    x_d_input, y_d_input = quenching_timescales(input_lbt, input_sfh, 0.1)
-    x_d_output, y_d_output = quenching_timescales(output_lbt, output_sfh, 0.1)
-    
-    # Use intersect package to determine where derivatives intersect the quenching threshold
-    quenching_threshhold = -np.abs(max(input_sfh)-min(input_sfh)/0.5) #originally -500
-    x_i, y_i = intersection_function(x_d_input, np.full(len(x_d_input), quenching_threshhold), y_d_input)
-    x_o, y_o = intersection_function(x_d_output, np.full(len(x_d_output), quenching_threshhold), y_d_output)
-    
-    # Plot derivative for input + output SFH, + quenching threshold from Wren's paper
-    # Plot vertical lines for the quench time on the SFH plot
-    ax[2].axhline(quenching_threshhold, linestyle='--', color='black', label='Normalized quenching threshold' if outroot_index == 0 else "") # Quench threshold
-    
-    if len(x_i) != 0:
-        ax[2].plot(x_d_input, y_d_input, '-o', color='black', lw=1.5, label='True SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_i[0])))[2:-2] + ' Gyr)' if outroot_index == 0 else "")
-        ax[1].axvline(x_i[0], linestyle='--', lw=1, color='black')
-        ax[2].axvline(x_i[0], linestyle='--', lw=1, color='black')
-    else:
-        ax[2].plot(x_d_input, y_d_input, '-o', color='black', lw=1.5, label='True SFH time derivative (does not pass quenching threshold)')
-        
-    if(outroot_index == 0):
-        if len(x_o != 0):
-            ax[2].plot(x_d_output, y_d_output, '-o', color='maroon', lw=1.5, label='Broad+MB SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_o[0])))[2:-2] + ' Gyr)')
-            ax[1].axvline(x_o[0], linestyle='--', lw=1, color='maroon')
-            ax[2].axvline(x_o[0], linestyle='--', lw=1, color='maroon')
-        else: 
-            ax[2].plot(x_d_output, y_d_output, '-o', color='maroon', lw=1.5, label='Broad+MB SFH time derivative (does not pass quenching threshold)')
-    if(outroot_index == 1):
-        if len(x_o != 0):
-            ax[2].plot(x_d_output, y_d_output, '-o', color='navy', lw=1.5, label='Broad only SFH time derivative (quench time: ' + str(list(map('{0:.3f}'.format, x_o[0])))[2:-2] + ' Gyr)')
-            ax[1].axvline(x_o[0], linestyle='--', lw=1, color='navy')
-            ax[2].axvline(x_o[0], linestyle='--', lw=1, color='navy')
-        else: 
-            ax[2].plot(x_d_output, y_d_output, '-o', color='navy', lw=1.5, label='Broad only SFH time derivative (does not pass quenching threshold)')
-    '''
     print("For loop completed")
 
 ax[1].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
 ax[1].set_yscale('log')
-ax[1].legend(loc='best', fontsize=10)
-ax[1].tick_params(axis='both', which='major', labelsize=10)
-ax[1].set_ylabel('SFR [' + r'$M_{\odot} /yr$' + ']', fontsize = 10)
+ax[1].legend(loc='best', fontsize=11)
+ax[1].tick_params(axis='both', which='major', labelsize=11)
+ax[1].set_ylabel('Star Formation Rate [' + r'$M_{\odot} /yr$' + ']', fontsize = 11)
 #ax[1].set_xlabel('years before observation [Gyr]')
-ax[1].set_xlabel('Lookback Time [Gyr]', fontsize = 10)
-
-ax[2].set_ylabel("SFH Time Derivative " + r'$[M_{\odot} yr^{-2}]$', fontsize=10)
-ax[2].set_xlabel('Lookback Time [Gyr]', fontsize=10)
-ax[2].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
-ax[2].set_ylim(-1000, 1000)
-ax[2].legend(loc='best', fontsize=9)
-ax[2].tick_params(axis='both', which='major', labelsize=10)
-
-print('Finished derivative plot')
+ax[1].set_xlabel('Lookback Time [Gyr]', fontsize = 11)
 
 # building the legend for the spectrum plot
 #ax[0].scatter([], [], color='black', marker='o', s=10, label=r'$Observed (\textcolor{maroon}{Broad+MB,} \color{navy}{Broad only})$') # adds a black dot onto the legend, representing observed
-ax[0].scatter([], [], color='black', marker='o', s=10, label=r'Observed (Broad+MB, Broad only)') # adds a black dot onto the legend, representing observed
-ax[0].legend(loc='upper right', fontsize=9)
+ax[0].scatter([], [], color='black', marker='o', s=10, label=r'Observed photometry') # adds a black dot onto the legend, representing observed
+ax[0].legend(loc='upper right', fontsize=11)
 
 # Legend settings for inset plot
 # add a color coded legend once all inset plotted
-leg = inset_ax.legend(handlelength=0, frameon=False, fontsize=12)
+leg = inset_ax.legend(handlelength=0, frameon=False, fontsize=11)
 for line,text in zip(leg.get_lines(),leg.get_texts()):
     text.set_color(line.get_color())
 

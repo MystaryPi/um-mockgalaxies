@@ -100,22 +100,26 @@ def trap(x, y):
         return np.sum((x[1:] - x[:-1]) * (y[1:] + y[:-1]))/2. 
 
 # set some params
-# tflex=2
+# tflex=2 
 # nflex=5
 # nfixed=3
 # Edited for new PSB model: youngest bin is 'tquench' long, and it is preceded by 'nflex' young flexible bins, then 'nfixed' older fixed bins
 
 ##############################################################################  
-    
-# grab results (dictionary), the obs dictionary, and our corresponding models
-res, obs, mod = results_from("{}".format(outroot), dangerous=True) # This displays the model parameters too
+'''
+res -- results dictionary
+obs -- contains filters, photometry, logmass, redshift
+mod -- model parameters (free/fixed)
+gal -- contains ID, mass, sfr, redshift, sfh
+spsdict -- contains truth logzsol, dust2, dust index
+'''
+res, obs, mod = results_from("{}".format(outroot), dangerous=True) 
 print("{}".format(outroot))
 sps = get_sps(res)
-
-# gal -- contains ID, mass, sfr, redshift, sfh
-# spsdict -- contains truth logzsol, dust2, dust index
-gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+gal = (np.load('/oak/stanford/orgs/kipac/users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+spsdict = (np.load('/oak/stanford/orgs/kipac/users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+#gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+#spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
 print('Object ID: ' + str(obs['objid']))
 
@@ -126,10 +130,10 @@ if not os.path.exists(plotdir):
     os.mkdir(plotdir)
 
 ##############################################################################  
-
-# traceplot
+# TRACEPLOT
 tracefig = traceplot(res, figsize=(10,5))
 # make sure directory exists
+'''
 if not os.path.exists(plotdir+'trace'):
     os.mkdir(plotdir+'trace')
 
@@ -139,23 +143,25 @@ filename = str(int(obs['objid'])) + '_{}.pdf' #defines filename for all objects
 while os.path.isfile(plotdir+'trace/'+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made
-
+'''
 # Save the traceplot
 '''
 plt.savefig(plotdir+'trace/'+filename, bbox_inches='tight')
 print('saved tracefig to '+plotdir+'trace/'+filename)
 plt.close()
 '''
-
 ##############################################################################  
-# corner plot
-# maximum a posteriori (of the locations visited by the MCMC sampler)
-# also put “truth” = input values for e.g. stellar mass, dust, metallicity, 
-# all of the values we set when we made the mock galaxy, on that cornerplot so we can see how right/wrong the fit is 
+# CORNER PLOT
+'''
+Maximum a posteriori (of the locations visited by the MCMC sampler)
+"Truth array" holds input values for e.g. stellar mass, dust, metallicity, etc. 
+ORDER of galaxy parameters: 
+['zred','logzsol','dust2','logmass','tlast','logsfr_ratio_young',
+'logsfr_ratio_old_1','logsfr_ratio_old_2', 'logsfr_ratio_old_3',
+'logsfr_ratios_1','logsfr_ratios_2','logsfr_ratios_3','logsfr_ratios_4','dust_index']
+'''
 
 # Truth values
-#['zred','logzsol','dust2','logmass','tlast','logsfr_ratio_young','logsfr_ratio_old_1','logsfr_ratio_old_2', 'logsfr_ratio_old_3','logsfr_ratios_1','logsfr_ratios_2','logsfr_ratios_3','logsfr_ratios_4','dust_index']
-
 truth_array = [gal['z'], spsdict['logzsol'], spsdict['dust2'], obs['logM'], 0, 0, 0, 0, 0, 0, 0, 0, 0, spsdict['dust_index']]
 imax = np.argmax(res['lnprobability'])
 #imax = res['lnprobability'].argsort()[-2] # finds the ith most likely value
@@ -164,7 +170,8 @@ theta_max = res['chain'][imax, :].copy()
 print('MAP value: {}'.format(theta_max))
 #fig, axes = plt.subplots(len(theta_max), len(theta_max), figsize=(15,15))
 
-# zoomed in cornerplots to the log SFR ratios
+# Zoomed in cornerplots to the log SFR ratios
+'''
 fig, axes = plt.subplots(len(theta_max[3:8]), len(theta_max[3:8]), figsize=(10,10))
 axes = um_cornerplot.allcorner(res['chain'].T[3:8], mod.theta_labels()[3:8], axes, show_titles=True, 
     span=[0.9]*len(mod.theta_labels()[3:8]), weights=res.get("weights", None), 
@@ -175,7 +182,7 @@ for diag in [0,1,2,3,4]:
     start, end = axes[diag, diag].get_xlim()
     axes[diag,diag].xaxis.set_ticks(np.arange(start, end, np.abs(start-end)/3), fontsize=6)
     axes[diag,diag].xaxis.set_major_formatter(ticker.FormatStrFormatter('%0.1f'))
-
+'''
 # save cornerplot
 '''
 if not os.path.exists(plotdir+'corner'):
@@ -187,23 +194,21 @@ print('saved cornerplot to '+plotdir+filename)
 '''
     
 print('Made cornerplot')
-
 ##############################################################################  
-
-# look at sed & residuals
+# SPECTRA (SED)
 # generate model at MAP value
-mspec_map, mphot_map, _ = mod.mean_model(theta_max, obs, sps=sps) #usually in restframe, in maggies
+mspec_map, mphot_map, _ = mod.mean_model(theta_max, obs, sps=sps) # restframe, in maggies
 # wavelength vectors
 #a = 1.0 + mod.params.get('zred', 0.0) # cosmological redshifting # FIXED ZRED
 a = 1.0 + obs['zred']
 
 # photometric effective wavelengths
-wphot = np.array(obs["wave_effective"]) #is this correct?
+wphot = np.array(obs["wave_effective"]) 
 # spectroscopic wavelengths
 if obs["wavelength"] is None:
     # *restframe* spectral wavelengths, since obs["wavelength"] is None
     wspec = sps.wavelengths.copy() #rest frame
-    wspec *= a #redshift them to be observed frame
+    wspec *= a #redshift them to observed frame
 else:
     wspec = obs["wavelength"]
     
@@ -238,9 +243,9 @@ print('Done calculating spectra')
 c = 2.99792458e18
 
 # NORMAL PLOTTING
-fig, ax = plt.subplots(3,1,figsize=(8,14))
+#fig, ax = plt.subplots(3,1,figsize=(8,14))
 
-###### PLOTS IN FLAM ###### 
+################ PLOT SPECTRA IN FLAM ################
 def convertMaggiesToFlam(w, maggies):
     # converts maggies to f_lambda units
     # For OBS DICT photometries - use w as obs['wave_effective'] - observed wavelengths 
@@ -249,12 +254,16 @@ def convertMaggiesToFlam(w, maggies):
     flux_flambda = flux_fnu * c/w**2 # v Fnu = lambda Flambda
     return flux_flambda
 
-# MAP spectrum
+# MAP spectrum (plotting mspec_map)
 # wphot = wave_effective
 #ax[0].plot(wspec, convertMaggiesToFlam(wspec, mspec_map), label='MAP Model spectrum',
 #       lw=1.5, color='grey', alpha=0.7, zorder=10)    
 
-# Median spectrum
+# Median spectrum (plotting spec50)
+norm_wl = ((wspec>6300) & (wspec<6500))
+norm = np.nanmax(convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']])
+
+'''
 ax[0].plot(wspec, convertMaggiesToFlam(wspec, spec50), label='Median spectrum',
                    lw=1.5, color='grey', alpha=0.7, zorder=10) 
 ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], label='Model photometry',
@@ -267,8 +276,6 @@ ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, obs['maggies
          marker='o', markersize=10, ls='', lw=3, alpha=0.8, 
          markerfacecolor='none', markeredgecolor='black', 
          markeredgewidth=3)            
-norm_wl = ((wspec>6300) & (wspec<6500))
-norm = np.nanmax(convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']])
 ax[0].set_ylim((-0.2*norm, norm*2)) #top=1.5e-19 roughly
 ax[0].set_xlim((1e3, 1e5))
 ax[0].set_xlabel('Observed Wavelength (' + r'$\AA$' + ')', fontsize=10)
@@ -278,6 +285,7 @@ ax[0].legend(loc='best', fontsize=9)
 ax[0].set_title(str(int(obs['objid'])))
 ax[0].tick_params(axis='both', which='major', labelsize=10)
 print('Made spectrum plot')
+'''
 
 ######################## SFH for FLEXIBLE continuity model ########################
 from um_prospector_param_file import updated_logsfr_ratios_to_masses_psb, updated_psb_logsfr_ratios_to_agebins
@@ -293,8 +301,7 @@ if 'zred' in mod.theta_index:
 else: 
     tmax = cosmo.age(obs['zred']).value
 
-# will need to interpolate to get everything on same time scale
-# make sure this matches b/t two model types!
+# interpolate to get everything on same time scale
 if tmax > 2:
     lbt_interp = np.concatenate((np.arange(0,2,.001),np.arange(2,tmax,.01),[tmax])) 
     # lookback time 
@@ -343,11 +350,13 @@ for iteration in range(flatchain.shape[0]):
         tlast_fraction=tlast_fraction, tflex_frac=tflex_frac, nflex=nflex, nfixed=nfixed, zred=zred)
     allsfrs[iteration,:] = (masses  / dt)
 
-# calculate interpolated SFR and cumulative mass  
-# with each likelihood draw you can convert the agebins from units of lookback time to units of age 
-# using the redshift at that likelihood draw, and put it on your fixed grid of ages
+'''
+Calculate interpolated SFR and cumulative mass  
+with each likelihood draw you can convert the agebins from units of lookback time to units of age 
+using the redshift at that likelihood draw, and put it on your fixed grid of ages  
+'''
 allagebins_lbt = 10**allagebins/1e9  # LBT
-allagebins_age = np.zeros_like(allagebins_lbt) + np.nan # AGE
+allagebins_age = np.zeros_like(allagebins_lbt) + np.nan # populate with AGE
 allsfrs_interp = np.zeros((flatchain.shape[0], len(lbt_interp))) # LBT (x-axis = lbt_interp)
 masscum_interp = np.zeros_like(allsfrs_interp)
 totmasscum_interp = np.zeros_like(allsfrs_interp)
@@ -356,6 +365,8 @@ for i in range(flatchain.shape[0]):
     # interpolate with LBT
     allsfrs_interp[i,:] = stepInterp(allagebins_lbt[i,:], allsfrs[i,:], lbt_interp)
     allsfrs_interp[i,-1] = 0
+    
+    # Calculate cumulative mass fraction by summing over SFRs
     masscum_interp[i,:] = 1 - (np.cumsum(allsfrs_interp[i,:] * dt) / np.nansum(allsfrs_interp[i,:] * dt))
     totmasscum_interp[i,:] = np.nansum(allsfrs_interp[i,:] * dt) - (np.cumsum(allsfrs_interp[i,:] * dt))
     
@@ -397,7 +408,8 @@ plt.title("logsfr_ratio_" + str(np.argmin(res['chain'][i, mod.theta_index['logsf
 plt.legend()
 '''
 
-######## SFH PLOTTING in LBT ##########
+################ SFH PLOTTING in LBT ################
+'''
 # OUTPUT SFH
 ax[1].fill_between(lbt_interp, sfrPercent[:,1], sfrPercent[:,3], color='grey', alpha=.5)
 ax[1].plot(lbt_interp, sfrPercent[:,2], color='black', lw=1.5, label='Output SFH (z = {0:.3f})'.format(mod.params['zred'][0])) 
@@ -413,8 +425,9 @@ ax[1].tick_params(axis='both', which='major', labelsize=10)
 ax[1].set_ylabel('SFR [' + r'$M_{\odot} /yr$' + ']', fontsize = 10)
 ax[1].set_xlabel('Lookback Time [Gyr]', fontsize = 10)
 print('Finished SFH')
+'''
  
-# CUMULATIVE MASS FRACTION
+################ CUMULATIVE MASS FRACTION ################
 # Square interpolation - SFR(t1) and SFR(t2) are two snapshots, then for t<(t1+t2)/2 you assume SFR=SFR(t1) and t>(t1+t2)/2 you assume SFR=SFR(t2)
 input_massFracSFR = np.array([])
 trapsfh = um_sfh
@@ -432,19 +445,23 @@ for n in range(len(trapsfh)-1):
 inputmassPercent = input_massFracSFR/input_massFracSFR[len(input_massFracSFR)-1]
 inputmassLBT = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)[1:len(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)]
 
+'''
 # PlOT + display input/output mass
 ax[2].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='grey', alpha=.5)
 ax[2].plot(lbt_interp,massPercent[:,2],color='black',lw=1.5,label='Output SFH')
 ax[2].plot(inputmassLBT, inputmassPercent, color='blue',lw=1.5,label='Input SFH')
+'''
 
-# t50, t90 - intersection function
+################ t50/t95 calculations ################
+# t50, t95 INPUT SFH
 x_in_t50 = inputmassLBT[np.argmin(np.abs(0.50 - inputmassPercent))]
 x_in_t95 = inputmassLBT[np.argmin(np.abs(0.95 - inputmassPercent))]
 
-# t50, t90 - intersection function
+# t50, t95 OUTPUT SFH
 x_rec_t50 = lbt_interp[np.argmin(np.abs(0.50 - massPercent[:,2]))]
 x_rec_t95 = lbt_interp[np.argmin(np.abs(0.50 - massPercent[:,2]))]
 
+'''
 # plot t50, t95 on SFH + mass frac plots
 ax[2].axvline(x_in_t50, linestyle='dotted', lw=1, color='blue')
 ax[2].axvline(x_in_t95, linestyle='dotted', lw=1, color='blue')
@@ -461,7 +478,9 @@ ax[2].set_ylabel('Cumulative Mass Fraction')
 ax[2].legend()
 ax[2].set_xlabel('Lookback Time [Gyr]')
 ax[2].set_ylim(0,1)
+'''
 
+'''
 plt.show()
 # save plot
 fig.tight_layout()
@@ -472,6 +491,7 @@ fig.savefig(plotdir+'sfh/' + filename, bbox_inches='tight')
 print('saved sfh to '+plotdir+'sfh/'+filename) 
 #plt.close(fig)
 print('Made SFH plot')
+'''
 
 # and now we want to write out all of these outputs so we can have them for later!
 # make a lil class that will just save all of the outputs we give it, so that it's easy to pack all these together later
@@ -485,13 +505,14 @@ class Output:
 phot_obs = np.stack((wphot, obs['maggies']))
 phot_fit = np.stack((wphot, phot16, phot50, phot84))
 
-
 # make an instance of the output structure for this dict
-out = Output(phot_obs=phot_obs, phot_fit=phot_fit, sfrs=sfrPercent, mass=massPercent, 
-    objname=str(obs['objid']), massfrac=massFrac, percentiles=percentiles, massTot=totmassPercent)
+out = Output(phot_obs=phot_obs, phot_fit=phot_fit, output_sfh=sfrPercent, cmf=massPercent, 
+    objname=str(obs['objid']), massfrac=massFrac, percentiles=percentiles, massTot=totmassPercent, 
+    input_lbt=(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value), output_lbt=lbt_interp, input_sfh=um_sfh,
+    input_t50=x_in_t50, input_t95=x_in_t95, output_t50=x_rec_t50, output_t95=x_rec_t95, obs=obs, gal=gal, spsdict=spsdict)
 
 # and save it
-if not os.path.exists('dicts/'):
-    os.mkdir('dicts/')
-np.savez('dicts/'+str(obs['objid'])+'.npz', res=out)
+if not os.path.exists('dicts/z3mb/'):
+    os.mkdir('dicts/z3mb/')
+np.savez('dicts/z3mb/'+str(obs['objid'])+'.npz', res=out)
 

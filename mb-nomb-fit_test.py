@@ -147,20 +147,11 @@ if len(sys.argv) > 0:
 plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/scatterplots-mb-nomb/'
 cosmo = FlatLambdaCDM(H0=70, Om0=.3)
 
-#command line argument (whole thing or just one)
-#if len(sys.argv) > 0:
-#    dictfile = sys.argv[1]  
-#else: can test whole thing later ig
-    
- 
-# iterate over files in that directory
-# YES - DICT FILES ARE UNIQUE
-
-# violin vs scatterplot
-# the sketchiest method i cant
-#mcmcCounter = len(glob.glob1(directory,"*.h5")
-
-fig, ax = plt.subplots(4,2,figsize=(9,9))
+class Output:
+    def __init__(self, **kwds):
+        self.__dict__.update(kwds)
+        
+fig, ax = plt.subplots(4,3,figsize=(9,10))
 from um_prospector_param_file import updated_logsfr_ratios_to_masses_psb, updated_psb_logsfr_ratios_to_agebins
 
 directory_array = [mb_directory, nomb_directory]
@@ -169,7 +160,6 @@ for directory_index, directory in enumerate(directory_array):
     print("Current directory: " + str(directory)) # prints out directory we're currently iterating over
     #clearing variables
     dust2_array = []
-    dust_index_array = []
     zred_array = []
     x_i = []
     x_o = []
@@ -177,17 +167,14 @@ for directory_index, directory in enumerate(directory_array):
     first_iteration = True # sets up this boolean for labels
     
     # Iterate through mcmc files in the directory
-    for mcmcfile in os.listdir(directory):
+    for mcmcfile in os.listdir(directory): # NOW DICTIONARY!!!!!
             mcmcfile = os.path.join(directory, mcmcfile)
             #print('Making plots for '+str(mcmcfile))
 
             res, obs, mod = results_from("{}".format(mcmcfile), dangerous=True)
-            gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z4p5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-            spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z4p5/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+            res = np.load(filename, allow_pickle=True)['res'][()]
 
-            sps = get_sps(res)
-
-            print('----- Object ID: ' + str(obs['objid']) + ' -----')
+            print('----- Object ID: ' + str(res.objname) + ' -----')
         
             # obtain sfh from universemachine
             um_sfh = gal['sfh'][:,1]
@@ -329,173 +316,57 @@ for directory_index, directory in enumerate(directory_array):
             
             if(directory_index == 0): # MB
                 #LOGMASS
-                ax[0,0].errorbar(obs['logM'],percentiles['logmass'][1],yerr=np.vstack((percentiles['logmass'][1]-percentiles['logmass'][0],percentiles['logmass'][2]-percentiles['logmass'][1])),marker='.', markersize=10, ls='', lw=2, 
+                ax[0,1].errorbar(obs['logM'],percentiles['logmass'][1],yerr=np.vstack((percentiles['logmass'][1]-percentiles['logmass'][0],percentiles['logmass'][2]-percentiles['logmass'][1])),marker='.', markersize=10, ls='', lw=2, 
                     markerfacecolor='maroon',markeredgecolor='maroon',ecolor='maroon',elinewidth=1.4, alpha=0.7,label="Broad+MB" if first_iteration else "")
         
-                #SFRs - get last value of um_sfh + 0th value of sfrpercent (both most recent values)
-                ax[0,1].errorbar(um_sfh[-1], sfrPercent[:,2][0], yerr=np.vstack((sfrPercent[:,2][0] - sfrPercent[:,1][0], sfrPercent[:,3][0]-sfrPercent[:,2][0])),marker='.', markersize=10, ls='', lw=2, 
-                    markerfacecolor='maroon',markeredgecolor='maroon',ecolor='maroon',elinewidth=1.4, alpha=0.7) 
-                
-                #LOGZSOL
-                ax[1,0].errorbar(spsdict['logzsol'],percentiles['logzsol'][1],yerr=np.vstack((percentiles['logzsol'][1]-percentiles['logzsol'][0],percentiles['logzsol'][2]-percentiles['logzsol'][1])),marker='.', markersize=10, ls='', lw=2, 
-                    markerfacecolor='maroon',markeredgecolor='maroon',ecolor='maroon',elinewidth=1.4, alpha=0.7) 
-            
                 #SFR over last 100 Myr
-                ax[3,1].errorbar(inputAverageSFR,outputAverageSFR, yerr=np.vstack((outputAverageSFR-outputAverageSFR_LE, outputAverageSFR_UE-outputAverageSFR)), marker='.', markersize=10, ls='', lw=2, markerfacecolor='maroon', markeredgecolor='maroon', ecolor='maroon',elinewidth=1.4, alpha=0.7)
+                ax[1,0].errorbar(inputAverageSFR,outputAverageSFR, yerr=np.vstack((outputAverageSFR-outputAverageSFR_LE, outputAverageSFR_UE-outputAverageSFR)), marker='.', markersize=10, ls='', lw=2, markerfacecolor='maroon', markeredgecolor='maroon', ecolor='maroon',elinewidth=1.4, alpha=0.7)
                 
             if(directory_index == 1): # No MB
                 #LOGMASS 
-                ax[0,0].errorbar(obs['logM'],percentiles['logmass'][1],yerr=np.vstack((percentiles['logmass'][1]-percentiles['logmass'][0],percentiles['logmass'][2]-percentiles['logmass'][1])), marker='.', markersize=10, ls='', lw=2, 
+                ax[0,1].errorbar(obs['logM'],percentiles['logmass'][1],yerr=np.vstack((percentiles['logmass'][1]-percentiles['logmass'][0],percentiles['logmass'][2]-percentiles['logmass'][1])), marker='.', markersize=10, ls='', lw=2, 
                     c='navy',markeredgecolor='navy',ecolor='navy',elinewidth=1.4, alpha=0.7,label="Broad only" if first_iteration else "")
                 
-                #SFRs - get last value of um_sfh + 0th value of sfrpercent (both most recent values)
-                ax[0,1].errorbar(um_sfh[-1], sfrPercent[:,2][0], yerr=np.vstack((sfrPercent[:,2][0] - sfrPercent[:,1][0], sfrPercent[:,3][0]-sfrPercent[:,2][0])),marker='.', markersize=10, ls='', lw=2, 
-                    c='navy',markeredgecolor='navy',ecolor='navy',elinewidth=1.4, alpha=0.7) 
-                
-                #LOGZSOL
-                ax[1,0].errorbar(spsdict['logzsol'],percentiles['logzsol'][1],yerr=np.vstack((percentiles['logzsol'][1]-percentiles['logzsol'][0],percentiles['logzsol'][2]-percentiles['logzsol'][1])),marker='.', markersize=10, ls='', lw=2, 
-                    c='navy',markeredgecolor='navy',ecolor='navy',elinewidth=1.4, alpha=0.7) 
-                
                 #SFR over last 100 Myr
-                ax[3,1].errorbar(inputAverageSFR,outputAverageSFR, yerr=np.vstack((outputAverageSFR-outputAverageSFR_LE, outputAverageSFR_UE-outputAverageSFR)), marker='.', markersize=10, ls='', lw=2, markerfacecolor='navy', markeredgecolor='navy', ecolor='navy',elinewidth=1.4, alpha=0.7)
+                ax[1,0].errorbar(inputAverageSFR,outputAverageSFR, yerr=np.vstack((outputAverageSFR-outputAverageSFR_LE, outputAverageSFR_UE-outputAverageSFR)), marker='.', markersize=10, ls='', lw=2, markerfacecolor='navy', markeredgecolor='navy', ecolor='navy',elinewidth=1.4, alpha=0.7)
                 
             
             dust2_array.append(percentiles['dust2'][1])
-            dust_index_array.append(percentiles['dust_index'][1])
             zred_array.append(percentiles['zred'][1]) 
-
-            # QUENCH TIME 
-            input_mask = [i for i in enumerate(um_sfh) if i == 0]
-            output_mask = [i for i, n in enumerate(sfrPercent[:,2]) if n == 0]
-
-            input_sfh = um_sfh[::-1]
-            input_lbt = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)[::-1]
-            output_sfh = sfrPercent[:,2]
-            output_lbt = lbt_interp
-
-            for i in sorted(input_mask, reverse=True):
-                input_sfh = np.delete(input_sfh, i)
-                input_lbt = np.delete(input_lbt, i)
-            for i in sorted(output_mask, reverse=True):
-                output_sfh = np.delete(output_sfh, i)
-                output_lbt = np.delete(output_lbt, i)
-
-            lbtLimit = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)[0]
-            output_lbt_mask = [i for i, n in enumerate(output_lbt) if n > lbtLimit]
-            for i in sorted(output_lbt_mask, reverse=True): # go in reverse order to prevent indexing error
-                output_sfh = np.delete(output_sfh, i)
-                output_lbt = np.delete(output_lbt, i)
-
-            # Find derivatives of input + output SFH, age is adjusted b/c now difference between points
-            def quenching_timescales(x, y, timescale):
-                from scipy import interpolate
-    
-                y_interp = interpolate.interp1d(x, y)
-    
-                # Calculate deriv of y (sfh) with respect to x (lbt)
-                dy_dx = np.array([])
-                newx = np.array([])
-                for i,lbtval in enumerate(x):
-                    if(lbtval + (timescale/2) < x[-1] and lbtval - (timescale/2) > x[0]): #up to upper limit
-                        dy_dx = np.append(dy_dx, -(y_interp(lbtval+(timescale/2)) - y_interp(lbtval - (timescale/2)))/timescale)
-                        newx = np.append(newx, lbtval) #create a new lbt up to upper limit
-
-                return newx, dy_dx
-            x_d_input, y_d_input = quenching_timescales(input_lbt, input_sfh, 0.1)
-            x_d_output, y_d_output = quenching_timescales(output_lbt, output_sfh, 0.1)
-            
-
-            # Use intersect package to determine where derivatives intersect the quenching threshold
-            # Finding the max and minimum, then normalizing the threshold 
-            quenching_threshhold = -np.abs(max(input_sfh)-min(input_sfh)/0.5) #originally -500
-            x_i, y_i = intersection_function(x_d_input, np.full(len(x_d_input), quenching_threshhold), y_d_input)
-            x_o, y_o = intersection_function(x_d_output, np.full(len(x_d_output), quenching_threshhold), y_d_output)
-            
-            # both quench times must be present
-            if len(x_i) != 0 and len(x_o) != 0:
-                if(directory_index == 0): # mb
-                    ax[3,0].plot(x_i[0], x_o[0], marker='.', markersize=10, ls='', lw=2, markerfacecolor='maroon',
-                    alpha=0.7, markeredgecolor='maroon')
-                if(directory_index == 1): # nomb
-                    ax[3,0].plot(x_i[0], x_o[0], marker='.', markersize=10, ls='', lw=2, markerfacecolor='navy',
-                    alpha=0.7, markeredgecolor='navy')
-            # if output quench time isnt present
-            if len(x_i) != 0 and len(x_o) == 0:
-                if(directory_index == 0): # mb
-                    ax[3,0].plot(x_i[0], -0.5, marker='.', markersize=10, ls='', lw=2, markerfacecolor='maroon',
-                    alpha=0.7, markeredgecolor='maroon')
-                if(directory_index == 1): # nomb
-                    ax[3,0].plot(x_i[0], -0.5, marker='.', markersize=10, ls='', lw=2, markerfacecolor='navy',
-                    alpha=0.7, markeredgecolor='navy')
-                
             
             first_iteration = False
          
     # PLOT THE VIOLIN PLOTS (zred, dust2, dust_index - INPUT is same!!!)
     if(directory_index == 0): # medium bands
-        _, bins_zred, _ = ax[1,1].hist(zred_array, bins=15, range=[spsdict['zred']-0.35,spsdict['zred']+0.35], color='maroon', alpha=0.5)
-        _, bins_dust2, _ = ax[2,0].hist(dust2_array, bins=15, range=[0.0,1.0], color='maroon', alpha=0.5)
-        _, bins_dust_index, _ = ax[2,1].hist(dust_index_array, bins='auto', range=[-1.0,0.5], color='maroon', alpha=0.5)
+        _, bins_zred, _ = ax[0,0].hist(zred_array, bins=15, range=[spsdict['zred']-0.35,spsdict['zred']+0.35], color='maroon', alpha=0.5)
+        _, bins_dust2, _ = ax[1,1].hist(dust2_array, bins=15, range=[0.0,1.0], color='maroon', alpha=0.5)
     if(directory_index == 1): # no medium bands
-        ax[1,1].hist(zred_array, bins=bins_zred, range=[spsdict['zred']-0.35,spsdict['zred']+0.35], color='navy', alpha=0.5)
-        ax[2,0].hist(dust2_array, bins=bins_dust2, range=[0.0,1.0], color='navy', alpha=0.5)
-        ax[2,1].hist(dust_index_array, bins=bins_dust_index, range=[-1.0,0.5], color='navy', alpha=0.5)
-    
+        ax[0,0].hist(zred_array, bins=bins_zred, range=[spsdict['zred']-0.35,spsdict['zred']+0.35], color='navy', alpha=0.5)
+        ax[1,1].hist(dust2_array, bins=bins_dust2, range=[0.0,1.0], color='navy', alpha=0.5)
+        
 # Below this point is just scaling
 #ZRED - hist
-ax[1,1].set_xlabel("Recovered redshift")
-ax[1,1].axvline(spsdict['zred'], ls='--',color='black', lw=2, label='Input redshift: {0:.3f}'.format(spsdict['zred']))
-ax[1,1].set_xlim(spsdict['zred']-0.35,spsdict['zred']+0.35)
+ax[0,0].set_xlabel("Recovered redshift")
+ax[0,0].axvline(spsdict['zred'], ls='--',color='black', lw=2, label='Input redshift: {0:.3f}'.format(spsdict['zred']))
+ax[0,0].set_xlim(spsdict['zred']-0.35,spsdict['zred']+0.35)
 
 # DUST2 - violin
-ax[2,0].set_xlabel("Recovered dust2")
-ax[2,0].axvline(0.2, ls='--',color='black', lw=2, label='Input dust2: 0.2')
-ax[2,0].set_xlim(-0.2,2.5)
-
-#DUST_INDEX - violin
-ax[2,1].set_xlabel("Recovered dust_index")
-ax[2,1].axvline(0, ls='--',color='black', lw=2, label='Input dust index: 0.0')
-ax[2,1].set_xlim(-1.2,0.6)
+ax[1,1].set_xlabel("Recovered dust2")
+ax[1,1].axvline(0.2, ls='--',color='black', lw=2, label='Input dust2: 0.2')
+ax[1,1].set_xlim(-0.2,2.5)
 
 # LOGMASS - scatter
-ax[0,0].axline((10.5, 10.5), slope=1, ls='--', color='black', lw=2)
-ax[0,0].set_xlabel(r'Input $log M_{stellar}$ (log $M_{sun}$)')
-ax[0,0].set_ylabel(r'Recovered $log M_{stellar}$ (log $M_{sun}$)')
-ax[0,0].legend(fontsize=10) # the one legend
-
-# SFR inst - scatter - TBD
-ax[0,1].axline((0, 0), slope=1, ls='--', color='black', lw=2)
-ax[0,1].set_ylabel(r'Recovered $log SFR_{inst}$ (log $M_{sun}$ / yr)')
-ax[0,1].set_xlabel(r'Input $log SFR_{inst}$ (log $M_{sun}$ / yr)')
-ax[0,1].set_xscale('log')
-ax[0,1].set_yscale('log')
-
-# LOGZSOL - scatter
-ax[1,0].axline((0, 0), slope=1, ls='--', color='black', lw=2)
-ax[1,0].set_xlim(-0.35,0.5)
-ax[1,0].set_ylim(-2,0.3)
-ax[1,0].set_xlabel(r'Input $log(Z/Z_{\odot})$')
-ax[1,0].set_ylabel(r'Recovered $log(Z/Z_{\odot})$')
-
-# QUENCHTIME - scatter
-ax[3,0].axline((0, 0), slope=1., ls='--', color='black', lw=2)
-ax[3,0].set_ylabel(r'Recovered quench time [Gyr]')
-ax[3,0].set_xlabel(r'Input quench time [Gyr]')
-ax[3,0].axline((0, 0), slope=0, ls='-', color='black', lw=1.5)
-arrow_location = [3.8, 2.2, 1.2] 
-ax[3,0].arrow(arrow_location[round(spsdict['zred'])-1], 0, 0, -0.3, width=0.02, color=None, edgecolor='black') 
-#ax[3,0].text(0.85, 0.1, "Not recovered") 
-label_location = [2.6, 1.5, 0.85] 
-ax[3,0].text(label_location[round(spsdict['zred'])-1], 0.1, "Not recovered")
-ax[3,0].set_ylim(bottom=-0.8)
-#ax[3,0].set_xlim((0, 1.25))
+ax[0,1].axline((10.5, 10.5), slope=1, ls='--', color='black', lw=2)
+ax[0,1].set_xlabel(r'Input $log M_{stellar}$ (log $M_{sun}$)')
+ax[0,1].set_ylabel(r'Recovered $log M_{stellar}$ (log $M_{sun}$)')
+ax[0,1].legend(fontsize=10) # the one legend
 
 # SFR - over meaningful timescale (100 Myr)
-ax[3,1].axline((0, 0), slope=1., ls='--', color='black', lw=2)
-ax[3,1].set_ylabel(r'Recovered $log SFR_{ave, 100 Myr}$ (log $M_{sun}$ / yr)')
-ax[3,1].set_xlabel(r'Input $log SFR_{ave, 100 Myr}$ (log $M_{sun}$ / yr)')
-ax[3,1].set_xscale('log')
-ax[3,1].set_yscale('log')
+ax[1,0].axline((0, 0), slope=1., ls='--', color='black', lw=2)
+ax[1,0].set_ylabel(r'Recovered $log SFR_{ave, 100 Myr}$ (log $M_{sun}$ / yr)')
+ax[1,0].set_xlabel(r'Input $log SFR_{ave, 100 Myr}$ (log $M_{sun}$ / yr)')
+ax[1,0].set_xscale('log')
+ax[1,0].set_yscale('log')
 
 plt.tight_layout()
 plt.show()
@@ -505,7 +376,7 @@ if not os.path.exists(plotdir):
     os.mkdir(plotdir)
 
 counter=0
-filename = '{}_z1.pdf' #defines filename for all objects
+filename = '{}_z3.pdf' #defines filename for all objects
 while os.path.isfile(plotdir+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made

@@ -276,18 +276,6 @@ def getMags(sps, filternames=['jwst_f115w','jwst_f150w','jwst_f200w','jwst_f277w
 
     for i, fil in enumerate(filters):
         magObs[i] = fil.ab_mag(wObs, spec) #magObs in AB magnitude #input: AA, cgs Flambda units
-  
-    '''
-    spec_new = spec * 3.34*10**4 * w**2 / 3631 
-    plt.plot(wObs, spec, label='Galaxy spectrum',lw=1.5, color='grey', alpha=0.7, zorder=10)    
-    plt.xscale('log')
-    plt.xlim(1e3, 1e5)
-    plt.ylim(1e-10, 1e-6)
-    plt.yscale('log')
-    plt.xlabel("Observed wavelength (AA)")
-    plt.ylabel(r"F$_\nu$ in maggies")
-    plt.show()
-    '''
 
     return(filters, magObs)
             
@@ -426,8 +414,7 @@ if __name__ == "__main__":
         # z = 0.974 
         saxes[1].set_ylabel(r"F$_\lambda$ in ergs/s/cm$^2$/AA")
         #saxes[1].set_ylabel(r"F$_\nu$ in maggies")
-            
-
+        
         saxes[0].set_yscale('log')
         saxes[0].set_xlim(0,cosmo.age(z).value)
         saxes[0].set_xlabel('Age (Gyr)')
@@ -437,125 +424,43 @@ if __name__ == "__main__":
         plt.show()
         
         '''
-        
         ##### TEMPORARY - plot filters
         # establish bounds
         fig = plt.figure(figsize=(8,4))
         counter = 0
         for f in obs['filters']:
             w, t = f.wavelength.copy(), f.transmission.copy()
+            w_index = int(len(w)/2)
+            t_index = int(len(t)/2)
             if counter < 7:
-                plt.plot(w, t*3, lw=2, color="royalblue")
+                plt.plot(w[w_index], t[t_index], lw=2, marker='o', color="navy")
                 print(counter)
             else:
-                plt.plot(w, t, lw=2, color="green")
+                plt.plot(w[w_index], t[t_index], lw=2, marker='o', color="maroon")
             counter+=1
 
         #Legend labels
-        plt.plot(w[0], t[0], lw=2, color="royalblue",label="UNCOVER bands")
-        plt.plot(w[-1], t[-1], lw=2, color="green",label="Mega Science bands")
+        plt.plot(w*(1+obs['zred']), spec, lw=1, color="black",label="Galaxy spectrum")
+        plt.scatter([], [], label="UNCOVER")
+        plt.scatter([], [], label="Medium bands (MB)")
 
         # prettify
         plt.xlabel('Wavelength [' + r'$\AA$' + ']')
-        plt.legend(fontsize=14)
-        plt.ylim(8e-2,7)
-        plt.xlim(1000, 100000)
+        plt.xlabel(r"F$_\lambda$ [ergs/s/cm$^2$/\AA]")
+        plt.legend(fontsize=11)
+        #plt.ylim(8e-2,7)
+        plt.xlim((2e3, 1e5))
         plt.xscale("log")
         plt.yscale("log")
         plt.yticks([])
         plt.tight_layout()
         plt.savefig("filters.png", dpi=400)
-        
         '''
-    
-    """
-    # MASS VS METALLICITY (compare with gallazzi)
-    #fig1 = plt.figure(1)
-    plt.scatter(logM, logZ, color='black')
-    #errors
-    plt.scatter(mass_massmet, metallicity_massmet, color='red')
-    plt.scatter(mass_massmet, lowererror_massmet, color='red', marker='^')
-    plt.scatter(mass_massmet, uppererror_massmet, color='red', marker='v')
-    plt.xlabel("Total mass (solar masses)", x=1, ha='right', fontsize = 11)
-    plt.ylabel("Metallicity", y=1, ha='right', fontsize=11)
-
-    # Extract values from massmets
-    plt.scatter(mass_massmet, metallicity_massmet, color='black')
-    plt.xlabel("Mass bins (solar masses)", x=1, ha='right', fontsize = 11)
-    plt.ylabel("Expected metallicity from Gallazzi 2005", y=1, ha='right', fontsize=11)
-
-    # REDSHIFT AND AGE vs SFR
-    fig1 = plt.figure(1)
-    plt.scatter(redshift, sfr, color='black')
-    plt.plot(redshift, sfr)
-    plt.xlabel("Redshift", x=1, ha='right', fontsize = 11)
-    plt.ylabel("Star formation rate (solar masses/year)", y=1, ha='right', fontsize=11)
-
-    fig2 = plt.figure(2)
-    plt.scatter(time_beginning, sfr, color='black')
-    plt.plot(time_beginning,sfr)
-    plt.xlabel("Time since beginning of universe (Gyr)", x=1, ha='right', fontsize = 11)
-    plt.ylabel("Star formation rate (solar masses/year)", y=1, ha='right', fontsize=11)
- 
-    # Normal dist histograms for metallicities
-    print(np.matrix(test_gallazi_metallicities))
-    plt.hist(test_gallazi_metallicities, bins=15)
-
-    """
-    
-    '''
-    sfrtest = plt.figure()
-    for sfh in sfr:
-        plt.plot(time_beginning, sfr, lw=1.2, alpha=.6)
-    plt.yscale('log')
-    plt.xlim(0,cosmo.age(2.5).value)
-    plt.xlabel('Time since beginning of the universe (Gyr)')
-    plt.ylabel('SFR')
-    plt.tight_layout()
-    plt.show()
-    '''
     
     
     #sps.set_tabular_sfh(time_beginning, sfr) #set metallicity? Z=logZ[0].item()
     #w, spec = sps.get_spectrum(tage=cosmo.age(obs['zred']).value) #spec in Lsun/Hz #originall tage=-99
     #iwnorm = np.argmin(np.abs(w - 4050))
     
-    # Plot double plot of SFR vs time AND galaxy spectra in physical units
-    '''
-    sfig, saxes = plt.subplots(2,1, figsize=(8, 6))
-    saxes[0].plot(time_beginning, sfr, lw=1.2, alpha=.6)
 
-    #Also plot PHOTOMETRY!!
-    #solar luminosities/hz (spec) * erg/s / cm^2 (specscaled) * 10**23 * 3.631 in jankskys / 3631 to maggies
-    saxes[1].plot(w,spec * lsun / (4*np.pi*cosmo.luminosity_distance(z=sps.params['zred']).to(u.cm).value**2) * 10**20, label='Galaxy spectrum',lw=1.5, color='grey', alpha=0.7, zorder=10)    
     
-    #Also plot the intrinsic (maggies orig) + obs (maggies + maggies_unc) photometry
-    saxes[1].errorbar(obs['wave_effective']/(1+obs['zred']), obs['maggies_orig'], label='Intrinsic photometry', marker='s', markersize=10, 
-        alpha=0.8, ls='', lw=3, markerfacecolor='none', markeredgecolor='green', markeredgewidth=3)
-    saxes[1].errorbar(obs['wave_effective']/(1+obs['zred']), obs['maggies'], yerr=obs['maggies_unc'], label='Observed photometry',
-        ecolor='red', marker='o', markersize=10, ls='', lw=3, alpha=0.8, markerfacecolor='none', markeredgecolor='black', markeredgewidth=3)
-
-    #saxes[1].set_xlim((1.2e3, 6.8e3))
-    saxes[1].set_xscale('log')
-    #saxes[1].set_xlim(1e3, 1e5)
-    saxes[1].legend(loc='best', fontsize=10)
-    #saxes[1].set_ylim(1e-12, 1e-7)
-    saxes[1].set_yscale('log')
-    saxes[1].set_xlabel("Rest-frame wavelength (AA)")
-    #text = saxes[1].text(1300, 10**-17.9, "Mass: " + str("%.3f" % logM[0]) + "\nMetallicity: " + str("%.3f" % logZ[0])) 
-    # z = 0.974 
-    # can remove easily with text.remove()
-    #saxes[1].set_ylabel(r"F$_\lambda$ in ergs/s/cm$^2$/AA")
-    saxes[1].set_ylabel(r"F$_\nu$ in maggies")
-        
-
-    saxes[0].set_yscale('log')
-    saxes[0].set_xlim(0,cosmo.age(2.5).value)
-    saxes[0].set_xlabel('Time since beginning of the universe (Gyr)')
-    saxes[0].set_ylabel('SFR')
-    sfig.tight_layout()
-    
-    #plt.show()
-    '''
-    
-    #fig.savefig("figures/quenching_spectra.png", dpi=400)
