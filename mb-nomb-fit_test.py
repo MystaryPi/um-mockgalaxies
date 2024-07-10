@@ -1,39 +1,17 @@
 '''
-Given two directories of MB mcmc files and no MB mcmc files, 
-will iterate through each galaxy fit and plot different 
+Given MB and no MB dict files, 
+will iterate through each galaxy dictionary and plot different 
 galaxy attributes as scatterplots/histograms. 
 
-python mb-nomb-fit_test.py /path/to/mb/directory/ /path/to/nomb/directory/
+python mb-nomb-fit_test.py -- automatically detects z1, z2, z3 dictionary
 '''
 import numpy as np
-from prospect.models import priors, SedModel
-from prospect.models.sedmodel import PolySedModel
-from prospect.models.templates import TemplateLibrary
-from prospect.sources import CSPSpecBasis
-from sedpy.observate import load_filters
-import sedpy
-from astropy.io import fits
-from scipy import signal
-from scipy import interpolate
-import dynesty
-import h5py
 from matplotlib import pyplot as plt, ticker as ticker; plt.interactive(True)
 from matplotlib.ticker import FormatStrFormatter
-from astropy.cosmology import FlatLambdaCDM, z_at_value
-import astropy.units as u
-import um_cornerplot
-from prospect.models.transforms import logsfr_ratios_to_masses
 import sys
-from scipy.interpolate import interp1d
 import os
-from prospect.io.read_results import results_from, get_sps
-from prospect.io.read_results import traceplot, subcorner
-import fsps
-import seaborn as sns
 import pandas as pd
 import glob
-
-from prospect.models.transforms import logsfr_ratios_to_masses_psb, psb_logsfr_ratios_to_agebins
 
 def stepInterp(ab, val, ts):
     '''ab: agebins vector
@@ -57,80 +35,6 @@ def quantile(data, percents, weights=None):
     y = np.interp(percents, p, d)
     return y
 
-def get_percentiles(res,mod, ptile=[16, 50, 84], start=0.0, thin=1, **extras):
-    """Get get percentiles of the marginalized posterior for each parameter.
-
-    :param res:
-        A results dictionary, containing a "chain" and "theta_labels" keys.
-
-    :param ptile: (optional, default: [16, 50, 84])
-       A list of percentiles (integers 0 to 100) to return for each parameter.
-
-    :param start: (optional, default: 0.5)
-       How much of the beginning of chains to throw away before calculating
-       percentiles, expressed as a fraction of the total number of iterations.
-
-    :param thin: (optional, default: 10.0)
-       Only use every ``thin`` iteration when calculating percentiles.
-
-    :returns pcts:
-       Dictionary with keys giving the parameter names and values giving the
-       requested percentiles for that parameter.
-    """
-
-    parnames = np.array(res.get('theta_labels', mod.theta_labels()))
-    niter = res['chain'].shape[-2]
-    start_index = np.floor(start * (niter-1)).astype(int)
-    if res["chain"].ndim > 2:
-        flatchain = res['chain'][:, start_index::thin, :]
-        dims = flatchain.shape
-        flatchain = flatchain.reshape(dims[0]*dims[1], dims[2])
-    elif res["chain"].ndim == 2:
-        flatchain = res["chain"][start_index::thin, :]
-    pct = np.array([quantile(p, ptile, weights=res.get("weights", None)) for p in flatchain.T])
-    return dict(zip(parnames, pct)) 
- 
-def intersection_function(x, y1, y2):
-    """Find the intercept of two curves, given by the same x data"""
-
-    def intercept(point1, point2, point3, point4):
-        """find the intersection between two lines
-        the first line is defined by the line between point1 and point2
-        the first line is defined by the line between point3 and point4
-        each point is an (x,y) tuple.
-
-        So, for example, you can find the intersection between
-        intercept((0,0), (1,1), (0,1), (1,0)) = (0.5, 0.5)
-
-        Returns: the intercept, in (x,y) format
-        """    
-
-        def line(p1, p2):
-            A = (p1[1] - p2[1])
-            B = (p2[0] - p1[0])
-            C = (p1[0]*p2[1] - p2[0]*p1[1])
-            return A, B, -C
-
-        def intersection(L1, L2):
-            D  = L1[0] * L2[1] - L1[1] * L2[0]
-            Dx = L1[2] * L2[1] - L1[1] * L2[2]
-            Dy = L1[0] * L2[2] - L1[2] * L2[0]
-
-            x = Dx / D
-            y = Dy / D
-            return x,y
-
-        L1 = line([point1[0],point1[1]], [point2[0],point2[1]])
-        L2 = line([point3[0],point3[1]], [point4[0],point4[1]])
-
-        R = intersection(L1, L2)
-
-        return R
-
-    idx = np.argwhere(np.diff(np.sign(y1 - y2)) != 0)
-    xc, yc = intercept((x[idx], y1[idx]),((x[idx+1], y1[idx+1])), ((x[idx], y2[idx])), ((x[idx+1], y2[idx+1])))
-    return xc,yc
-
 def trap(x, y):
         return np.sum((x[1:] - x[:-1]) * (y[1:] + y[:-1]))/2. 
 
@@ -140,233 +44,138 @@ nflex=5
 nfixed=3
 
 # assign directory #DONT DO IN SHERLOCK - NO SEABORN
+'''
 if len(sys.argv) > 0:
-    mb_directory = str(sys.argv[1]) # example: '/Users/michpark/JWST_Programs/mockgalaxies/final/z3mb/'
-    nomb_directory = str(sys.argv[2]) # example: '/Users/michpark/JWST_Programs/mockgalaxies/final/z3nomb/'
-  
+    mb_directory = str(sys.argv[1]) # example: '/Users/michpark/JWST_Programs/mockgalaxies/final-dicts/z3mb/'
+    nomb_directory = str(sys.argv[2]) # example: '/Users/michpark/JWST_Programs/mockgalaxies/final-dicts/z3nomb/'
+'''
 plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/scatterplots-mb-nomb/'
-cosmo = FlatLambdaCDM(H0=70, Om0=.3)
 
 class Output:
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
         
-fig, ax = plt.subplots(4,3,figsize=(9,10))
-from um_prospector_param_file import updated_logsfr_ratios_to_masses_psb, updated_psb_logsfr_ratios_to_agebins
+fig, ax = plt.subplots(4,3,figsize=(12,15))
+#directory_array = [mb_directory, nomb_directory]
 
-directory_array = [mb_directory, nomb_directory]
+zcounter_array = [0,1,2]
+for zcounter in zcounter_array:
+    directory_array = ['/Users/michpark/JWST_Programs/mockgalaxies/final-dicts/z'+str(zcounter+1)+'mb', '/Users/michpark/JWST_Programs/mockgalaxies/final-dicts/z'+str(zcounter+1)+'nomb/']
 
-for directory_index, directory in enumerate(directory_array):
-    print("Current directory: " + str(directory)) # prints out directory we're currently iterating over
-    #clearing variables
-    dust2_array = []
-    zred_array = []
-    x_i = []
-    x_o = []
+    for directory_index, directory in enumerate(directory_array):
+        print("Current directory: " + str(directory)) # prints out directory we're currently iterating over
+        #clearing variables
+        dust2_array = []
+        zred_array = []
+        x_i = []
+        x_o = []
     
-    first_iteration = True # sets up this boolean for labels
+        first_iteration = True # sets up this boolean for labels
     
-    # Iterate through mcmc files in the directory
-    for mcmcfile in os.listdir(directory): # NOW DICTIONARY!!!!!
-            mcmcfile = os.path.join(directory, mcmcfile)
-            #print('Making plots for '+str(mcmcfile))
+        # Iterate through mcmc files in the directory
+        for mcmcfile in os.listdir(directory): # NOW DICTIONARY!!!!!
+                mcmcfile = os.path.join(directory, mcmcfile)
+                #print('Making plots for '+str(mcmcfile))
 
-            res, obs, mod = results_from("{}".format(mcmcfile), dangerous=True)
-            res = np.load(filename, allow_pickle=True)['res'][()]
+                res = np.load(mcmcfile, allow_pickle=True)['res'][()]
 
-            print('----- Object ID: ' + str(res.objname) + ' -----')
+                print('----- Object ID: ' + str(res.objname) + ' -----')
+
+                ##### SFR over meaningful timescale #####
+                '''
+                - 100 Myr - timescale that direct Halpha measurements are sensitive to
+                - Built function to take in SFH and an averaging timescale (default 100 Myr) 
+                - adds up the total mass formed in that timescale / timescale = average SFR
+
+                timescale: most recent timescale (in Gyr)
+                lbt_interp: lookback time of FULL range
+                sfh: takes in SFH of FULL range
+                '''
+                # Square interpolation - SFR(t1) and SFR(t2) are two snapshots, then for t<(t1+t2)/2 you assume SFR=SFR(t1) and t>(t1+t2)/2 you assume SFR=SFR(t2)
+            
+                def averageSFR(lbt, sfh, timescale):  
+                    # SFH * time / total time
+                    limited_lbt = np.array([])
+                    limited_sfh = np.array([])
+                
+                    # check if reversed array
+                    if(lbt[0] > lbt[1]): 
+                        lbt = lbt[::-1]
+                        sfh = sfh[::-1]
+                
+                    for m in range(len(lbt)):
+                        if(lbt[m] <= timescale):
+                            limited_lbt = np.append(limited_lbt, lbt[m])
+                            limited_sfh = np.append(limited_sfh, sfh[m])
+                    area_under = 0
+                    for n in range(len(limited_lbt)-1):
+                        area_under += ((limited_lbt[n+1]+limited_lbt[n])*0.5 - limited_lbt[n]) * (limited_sfh[n] + limited_sfh[n+1])
+                
+                    # add the last value, ends up being 0 if all the way up to 
+                    area_under += limited_sfh[-1] * (timescale - limited_lbt[-1])
+                
+                    return area_under/timescale
+                
+                inputAverageSFR = averageSFR(res.input_lbt, res.input_sfh, timescale=0.1)
+                outputAverageSFR_LE = averageSFR(res.output_lbt, res.output_sfh[:,1], timescale=0.1)
+                outputAverageSFR = averageSFR(res.output_lbt, res.output_sfh[:,2], timescale=0.1)
+                outputAverageSFR_UE = averageSFR(res.output_lbt, res.output_sfh[:,3], timescale=0.1)
+            
+                if(directory_index == 0): # MB
+                    #LOGMASS
+                    ax[1,zcounter].errorbar(res.obs['logM'],res.percentiles['logmass'][1],yerr=np.vstack((res.percentiles['logmass'][1]-res.percentiles['logmass'][0],res.percentiles['logmass'][2]-res.percentiles['logmass'][1])),marker='.', markersize=10, ls='', lw=2, 
+                        markerfacecolor='maroon',markeredgecolor='maroon',ecolor='maroon',elinewidth=1.4, alpha=0.7,label="Broad+MB" if first_iteration else "")
         
-            # obtain sfh from universemachine
-            um_sfh = gal['sfh'][:,1]
-            #error bars (quantiles) + values for zred, logzsol, dust2, logmass, dust_index
-        
-            # SFH THINGS
-            # actual sfh percentiles
-            flatchain = res["chain"]
-            niter = res['chain'].shape[-2]
-            if 'zred' in mod.theta_index:
-                tmax = cosmo.age(np.min(flatchain[:,mod.theta_index['zred']])).value #matches scales
-            else: 
-                tmax = cosmo.age(obs['zred']).value
-
-            if tmax > 2:
-                lbt_interp = np.concatenate((np.arange(0,2,.001),np.arange(2,tmax,.01),[tmax])) 
-            else:
-                lbt_interp = np.arange(0,tmax+.005, .001)    
-            lbt_interp[0] = 1e-9    
-            age_interp = tmax - lbt_interp
-        
-            nflex = mod.params['nflex']
-            nfixed = mod.params['nfixed']
-            tflex_frac = mod.params['tflex_frac']  
-
-            # actual sfh percentiles
-            allsfrs = np.zeros((flatchain.shape[0], len(mod.params['agebins'])))
-            allagebins = np.zeros((flatchain.shape[0], len(mod.params['agebins']), 2))
-            for iteration in range(flatchain.shape[0]):
-                zred = flatchain[iteration, mod.theta_index['zred']]
-                tuniv_thisdraw = cosmo.age(zred).value
-                logr = np.clip(flatchain[iteration, mod.theta_index["logsfr_ratios"]], -7,7)
-                tlast_fraction = flatchain[iteration, mod.theta_index['tlast_fraction']]
-                logr_young = np.clip(flatchain[iteration, mod.theta_index['logsfr_ratio_young']], -7, 7)
-                logr_old = np.clip(flatchain[iteration, mod.theta_index['logsfr_ratio_old']], -7, 7)
-                try:
-                    logmass = flatchain[iteration, mod.theta_index['massmet']][0] # not what we are using
-                except:
-                    logmass = flatchain[iteration, mod.theta_index["logmass"]]      
-                agebins = updated_psb_logsfr_ratios_to_agebins(logsfr_ratios=logr, agebins=mod.params['agebins'], 
-                    tlast_fraction=tlast_fraction, tflex_frac=tflex_frac, nflex=nflex, nfixed=nfixed, zred=zred)
-                allagebins[iteration, :] = agebins
-                dt = 10**agebins[:, 1] - 10**agebins[:, 0]
-                masses = updated_logsfr_ratios_to_masses_psb(logsfr_ratios=logr, logmass=logmass, agebins=agebins,
-                    logsfr_ratio_young=logr_young, logsfr_ratio_old=logr_old,
-                    tlast_fraction=tlast_fraction, tflex_frac=tflex_frac, nflex=nflex, nfixed=nfixed, zred=zred)
-                allsfrs[iteration,:] = (masses  / dt)
-
-            # calculate interpolated SFR and cumulative mass  
-            # with each likelihood draw you can convert the agebins from units of lookback time to units of age 
-            # using the redshift at that likelihood draw, and put it on your fixed grid of ages
-            allagebins_lbt = 10**allagebins/1e9  
-            allagebins_age = np.zeros_like(allagebins_lbt) + np.nan
-            allsfrs_interp = np.zeros((flatchain.shape[0], len(lbt_interp))) # this one is in LBT (x-axis = lbt_interp)
-            allsfrs_interp_age = np.zeros((flatchain.shape[0], len(lbt_interp))) # this one is in age of universe (x-axis = age_interp)
-            masscum_interp = np.zeros_like(allsfrs_interp)
-            totmasscum_interp = np.zeros_like(allsfrs_interp)
-            dt = (lbt_interp - np.insert(lbt_interp,0,0)[:-1]) * 1e9
-            for i in range(flatchain.shape[0]):
-                allsfrs_interp[i,:] = stepInterp(allagebins_lbt[i,:], allsfrs[i,:], lbt_interp)
-                allsfrs_interp[i,-1] = 0
-                masscum_interp[i,:] = 1 - (np.cumsum(allsfrs_interp[i,:] * dt) / np.nansum(allsfrs_interp[i,:] * dt))
-                totmasscum_interp[i,:] = np.nansum(allsfrs_interp[i,:] * dt) - (np.cumsum(allsfrs_interp[i,:] * dt))
-
-                # now: let's also calculate this in terms of age of universe, not just LBT
-                tuniv_thisdraw = cosmo.age(flatchain[i,mod.theta_index['zred']][0]).value
-                allagebins_age[i,:] = tuniv_thisdraw - allagebins_lbt[i,:]; allagebins_age[i, -1,-1] = 0
-                # swap the order so that interp can deal with it
-                allagebins_age[i,:] = allagebins_age[i,:][:,::-1]
-                allsfrs_interp_age[i,:] = stepInterp(allagebins_age[i,:], allsfrs[i,:], age_interp)
-
-            # sfr and cumulative mass percentiles 
-            sfrPercent = np.array([quantile(allsfrs_interp[:,i], [16,50,84], weights=res.get('weights', None)) 
-                    for i in range(allsfrs_interp.shape[1])])
-            sfrPercent = np.concatenate((lbt_interp[:,np.newaxis], sfrPercent), axis=1) # add time  
-            massPercent = np.array([quantile(masscum_interp[:,i], [16,50,84], weights=res.get('weights', None)) 
-                for i in range(masscum_interp.shape[1])])    
-            massPercent = np.concatenate((lbt_interp[:,np.newaxis], massPercent), axis=1) # add time          
-            totmassPercent = np.array([quantile(totmasscum_interp[:,i], [16,50,84], weights=res.get('weights', None)) 
-                for i in range(totmasscum_interp.shape[1])])    
-            totmassPercent = np.concatenate((lbt_interp[:,np.newaxis], totmassPercent), axis=1) # add time
-            # now SFR in terms of age as well
-            sfrPercent_age = np.array([quantile(allsfrs_interp_age[:,i], [16,50,84], weights=res.get('weights', None)) 
-                for i in range(allsfrs_interp_age.shape[1])])
-            sfrPercent_age = np.concatenate((age_interp[:,np.newaxis], sfrPercent_age), axis=1) # add time  
-
-            # all percentiles...
-            percentiles = get_percentiles(res, mod) # stores 16 50 84 percentiles for dif parameters
-            massFrac = 1 - massPercent[lbt_interp==1, 1:].flatten()[::-1]  
-
-            #print("obs logM: " + str(obs['logM']))
-            #print("um sfh integral mass: " + str(np.log10(trap(cosmo.age(gal['sfh'][:,0]).value*1e9, um_sfh))))
-            #print("output original:" + str(logmass_array[1]))
-            #print("output integral mass: " + str(np.log10(trap(cosmo.age(gal['sfh'][:,0]).value*1e9, sfhadjusted))))
-            #outputIntegralMass = np.log10(trap(cosmo.age(gal['sfh'][:,0]).value*1e9, sfhadjusted))
-
-            ##### SFR over meaningful timescale #####
-            '''
-            - 100 Myr - timescale that direct Halpha measurements are sensitive to
-            - Built function to take in SFH and an averaging timescale (default 100 Myr) 
-            - adds up the total mass formed in that timescale / timescale = average SFR
-
-            timescale: most recent timescale (in Gyr)
-            lbt_interp: lookback time of FULL range
-            sfh: takes in SFH of FULL range
-            '''
-            # Square interpolation - SFR(t1) and SFR(t2) are two snapshots, then for t<(t1+t2)/2 you assume SFR=SFR(t1) and t>(t1+t2)/2 you assume SFR=SFR(t2)
-            
-            def averageSFR(lbt, sfh, timescale):  
-                # SFH * time / total time
-                limited_lbt = np.array([])
-                limited_sfh = np.array([])
+                    #SFR over last 100 Myr
+                    ax[2,zcounter].errorbar(inputAverageSFR,outputAverageSFR, yerr=np.vstack((outputAverageSFR-outputAverageSFR_LE, outputAverageSFR_UE-outputAverageSFR)), marker='.', markersize=10, ls='', lw=2, markerfacecolor='maroon', markeredgecolor='maroon', ecolor='maroon',elinewidth=1.4, alpha=0.7)
                 
-                # check if reversed array
-                if(lbt[0] > lbt[1]): 
-                    lbt = lbt[::-1]
-                    sfh = sfh[::-1]
+                if(directory_index == 1): # No MB
+                    #LOGMASS 
+                    ax[1, zcounter].errorbar(res.obs['logM'],res.percentiles['logmass'][1],yerr=np.vstack((res.percentiles['logmass'][1]-res.percentiles['logmass'][0],res.percentiles['logmass'][2]-res.percentiles['logmass'][1])), marker='.', markersize=10, ls='', lw=2, 
+                        c='navy',markeredgecolor='navy',ecolor='navy',elinewidth=1.4, alpha=0.7,label="Broad only" if first_iteration else "")
                 
-                for m in range(len(lbt)):
-                    if(lbt[m] <= timescale):
-                        limited_lbt = np.append(limited_lbt, lbt[m])
-                        limited_sfh = np.append(limited_sfh, sfh[m])
-                area_under = 0
-                for n in range(len(limited_lbt)-1):
-                    area_under += ((limited_lbt[n+1]+limited_lbt[n])*0.5 - limited_lbt[n]) * (limited_sfh[n] + limited_sfh[n+1])
-                
-                # add the last value, ends up being 0 if all the way up to 
-                area_under += limited_sfh[-1] * (timescale - limited_lbt[-1])
-                
-                return area_under/timescale
-                
-            inputAverageSFR = averageSFR(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value, um_sfh, timescale=0.1)
-            outputAverageSFR_LE = averageSFR(lbt_interp, sfrPercent[:,1], timescale=0.1)
-            outputAverageSFR = averageSFR(lbt_interp, sfrPercent[:,2], timescale=0.1)
-            outputAverageSFR_UE = averageSFR(lbt_interp, sfrPercent[:,3], timescale=0.1)
-            
-            print("For " + str(obs['objid']) + ", we have input INST: " + str(um_sfh[-1]) + ", input AVE: " + str(inputAverageSFR) + ", outputINST: " + str(sfrPercent[:,2][0]) + ", output AVE: " + str(outputAverageSFR) + " with errors: " + str(outputAverageSFR_LE) + " and " + str(outputAverageSFR_UE))
-            print("For " + str(obs['objid']) + ", we have input mass: " + str(obs['logM']) + ", output mass: " + str(percentiles['logmass'][1]))
-            
-            if(directory_index == 0): # MB
-                #LOGMASS
-                ax[0,1].errorbar(obs['logM'],percentiles['logmass'][1],yerr=np.vstack((percentiles['logmass'][1]-percentiles['logmass'][0],percentiles['logmass'][2]-percentiles['logmass'][1])),marker='.', markersize=10, ls='', lw=2, 
-                    markerfacecolor='maroon',markeredgecolor='maroon',ecolor='maroon',elinewidth=1.4, alpha=0.7,label="Broad+MB" if first_iteration else "")
-        
-                #SFR over last 100 Myr
-                ax[1,0].errorbar(inputAverageSFR,outputAverageSFR, yerr=np.vstack((outputAverageSFR-outputAverageSFR_LE, outputAverageSFR_UE-outputAverageSFR)), marker='.', markersize=10, ls='', lw=2, markerfacecolor='maroon', markeredgecolor='maroon', ecolor='maroon',elinewidth=1.4, alpha=0.7)
-                
-            if(directory_index == 1): # No MB
-                #LOGMASS 
-                ax[0,1].errorbar(obs['logM'],percentiles['logmass'][1],yerr=np.vstack((percentiles['logmass'][1]-percentiles['logmass'][0],percentiles['logmass'][2]-percentiles['logmass'][1])), marker='.', markersize=10, ls='', lw=2, 
-                    c='navy',markeredgecolor='navy',ecolor='navy',elinewidth=1.4, alpha=0.7,label="Broad only" if first_iteration else "")
-                
-                #SFR over last 100 Myr
-                ax[1,0].errorbar(inputAverageSFR,outputAverageSFR, yerr=np.vstack((outputAverageSFR-outputAverageSFR_LE, outputAverageSFR_UE-outputAverageSFR)), marker='.', markersize=10, ls='', lw=2, markerfacecolor='navy', markeredgecolor='navy', ecolor='navy',elinewidth=1.4, alpha=0.7)
+                    #SFR over last 100 Myr
+                    ax[2, zcounter].errorbar(inputAverageSFR,outputAverageSFR, yerr=np.vstack((outputAverageSFR-outputAverageSFR_LE, outputAverageSFR_UE-outputAverageSFR)), marker='.', markersize=10, ls='', lw=2, markerfacecolor='navy', markeredgecolor='navy', ecolor='navy',elinewidth=1.4, alpha=0.7)
                 
             
-            dust2_array.append(percentiles['dust2'][1])
-            zred_array.append(percentiles['zred'][1]) 
+                dust2_array.append(res.percentiles['dust2'][1])
+                zred_array.append(res.percentiles['zred'][1]) 
             
-            first_iteration = False
+                first_iteration = False
          
-    # PLOT THE VIOLIN PLOTS (zred, dust2, dust_index - INPUT is same!!!)
-    if(directory_index == 0): # medium bands
-        _, bins_zred, _ = ax[0,0].hist(zred_array, bins=15, range=[spsdict['zred']-0.35,spsdict['zred']+0.35], color='maroon', alpha=0.5)
-        _, bins_dust2, _ = ax[1,1].hist(dust2_array, bins=15, range=[0.0,1.0], color='maroon', alpha=0.5)
-    if(directory_index == 1): # no medium bands
-        ax[0,0].hist(zred_array, bins=bins_zred, range=[spsdict['zred']-0.35,spsdict['zred']+0.35], color='navy', alpha=0.5)
-        ax[1,1].hist(dust2_array, bins=bins_dust2, range=[0.0,1.0], color='navy', alpha=0.5)
+        # PLOT THE VIOLIN PLOTS (zred, dust2, dust_index - INPUT is same!!!)
+        if(directory_index == 0): # medium bands
+            _, bins_zred, _ = ax[0,zcounter].hist(zred_array, bins=np.linspace(res.spsdict['zred']-0.35, res.spsdict['zred']+0.35, 30), range=[res.spsdict['zred']-0.35,res.spsdict['zred']+0.35], color='maroon', alpha=0.5)
+            _, bins_dust2, _ = ax[3,zcounter].hist(dust2_array, bins=np.linspace(0.0, 1.0, 25), range=[0.0,1.0], color='maroon', alpha=0.5)
+        if(directory_index == 1): # no medium bands
+            ax[0,zcounter].hist(zred_array, bins=bins_zred, range=[res.spsdict['zred']-0.35,res.spsdict['zred']+0.35], color='navy', alpha=0.5)
+            ax[3,zcounter].hist(dust2_array, bins=bins_dust2, range=[0.0,1.0], color='navy', alpha=0.5)
         
-# Below this point is just scaling
-#ZRED - hist
-ax[0,0].set_xlabel("Recovered redshift")
-ax[0,0].axvline(spsdict['zred'], ls='--',color='black', lw=2, label='Input redshift: {0:.3f}'.format(spsdict['zred']))
-ax[0,0].set_xlim(spsdict['zred']-0.35,spsdict['zred']+0.35)
+    # Below this point is just scaling
+    #ZRED - hist
+    ax[0,zcounter].set_ylabel("Recovered redshift")
+    ax[0,zcounter].set_xlabel("Input redshift")
+    ax[0,zcounter].axvline(res.spsdict['zred'], ls='--',color='black', lw=2, label='Input redshift: {0:.3f}'.format(res.spsdict['zred']))
+    ax[0,zcounter].set_xlim(res.spsdict['zred']-0.35,res.spsdict['zred']+0.35)
 
-# DUST2 - violin
-ax[1,1].set_xlabel("Recovered dust2")
-ax[1,1].axvline(0.2, ls='--',color='black', lw=2, label='Input dust2: 0.2')
-ax[1,1].set_xlim(-0.2,2.5)
+    # DUST2 - violin
+    ax[3,zcounter].set_xlabel("Input dust2")
+    ax[3, zcounter].set_ylabel("Recovered dust2")
+    ax[3, zcounter].axvline(0.2, ls='--',color='black', lw=2, label='Input dust2: 0.2')
+    ax[3, zcounter].set_xlim(0,1.0)
 
-# LOGMASS - scatter
-ax[0,1].axline((10.5, 10.5), slope=1, ls='--', color='black', lw=2)
-ax[0,1].set_xlabel(r'Input $log M_{stellar}$ (log $M_{sun}$)')
-ax[0,1].set_ylabel(r'Recovered $log M_{stellar}$ (log $M_{sun}$)')
-ax[0,1].legend(fontsize=10) # the one legend
+    # LOGMASS - scatter
+    ax[1, zcounter].axline((10.5, 10.5), slope=1, ls='--', color='black', lw=2)
+    ax[1, zcounter].set_xlabel(r'Input $log M_{stellar}$ (log $M_{sun}$)')
+    ax[1, zcounter].set_ylabel(r'Recovered $log M_{stellar}$ (log $M_{sun}$)')
+    ax[1, zcounter].legend(fontsize=10) # the one legend
 
-# SFR - over meaningful timescale (100 Myr)
-ax[1,0].axline((0, 0), slope=1., ls='--', color='black', lw=2)
-ax[1,0].set_ylabel(r'Recovered $log SFR_{ave, 100 Myr}$ (log $M_{sun}$ / yr)')
-ax[1,0].set_xlabel(r'Input $log SFR_{ave, 100 Myr}$ (log $M_{sun}$ / yr)')
-ax[1,0].set_xscale('log')
-ax[1,0].set_yscale('log')
+    # SFR - over meaningful timescale (100 Myr)
+    ax[2, zcounter].axline((0, 0), slope=1., ls='--', color='black', lw=2)
+    ax[2, zcounter].set_ylabel(r'Recovered $log SFR_{ave, 100 Myr}$ (log $M_{sun}$ / yr)')
+    ax[2, zcounter].set_xlabel(r'Input $log SFR_{ave, 100 Myr}$ (log $M_{sun}$ / yr)')
+    ax[2, zcounter].set_xscale('log')
+    ax[2, zcounter].set_yscale('log')
 
 plt.tight_layout()
 plt.show()
@@ -376,12 +185,12 @@ if not os.path.exists(plotdir):
     os.mkdir(plotdir)
 
 counter=0
-filename = '{}_z3.pdf' #defines filename for all objects
+filename = '{}_z_all.pdf' #defines filename for all objects
 while os.path.isfile(plotdir+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made
-fig.savefig(plotdir+filename, bbox_inches='tight')
-  
+#fig.savefig(plotdir+filename, bbox_inches='tight')
+fig.savefig("/Users/michpark/Sync/Documents/JWST RESEARCH/Interesting Plots/PAPER PLOTS/allzscatter.pdf", bbox_inches='tight')
 print('saved mb vs. nomb scatterplot to '+plotdir+filename) 
 
 #plt.close(fig)
