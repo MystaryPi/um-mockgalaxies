@@ -235,7 +235,9 @@ phot50 = np.array([quantile(allphot[i,:], 50, weights = weights[idx]) for i in r
 phot84 = np.array([quantile(allphot[i,:], 84, weights = weights[idx]) for i in range(allphot.shape[0])])
 
 # median spectrum
+spec16 = np.array([quantile(allspec[1,i,:], 16, weights = weights[idx]) for i in range(allspec.shape[1])])
 spec50 = np.array([quantile(allspec[1,i,:], 50, weights = weights[idx]) for i in range(allspec.shape[1])])
+spec84 = np.array([quantile(allspec[1,i,:], 84, weights = weights[idx]) for i in range(allspec.shape[1])])
     
 print('Done calculating spectra')
 
@@ -320,6 +322,7 @@ allsfrs = np.zeros((flatchain.shape[0], len(mod.params['agebins'])))
 allagebins = np.zeros((flatchain.shape[0], len(mod.params['agebins']), 2))
 for iteration in range(flatchain.shape[0]):
     zred = flatchain[iteration, mod.theta_index['zred']]
+    zred_thisdraw = np.append(zred_thisdraw, zred) # collect zred values for each draw
     tuniv_thisdraw = cosmo.age(zred).value
     logr = np.clip(flatchain[iteration, mod.theta_index["logsfr_ratios"]], -7,7)
     tlast_fraction = flatchain[iteration, mod.theta_index['tlast_fraction']]
@@ -350,6 +353,7 @@ for iteration in range(flatchain.shape[0]):
         tlast_fraction=tlast_fraction, tflex_frac=tflex_frac, nflex=nflex, nfixed=nfixed, zred=zred)
     allsfrs[iteration,:] = (masses  / dt)
 
+zred_weighted = utils.resample_equal(zred_thisdraw, res.get('weights', None))
 '''
 Calculate interpolated SFR and cumulative mass  
 with each likelihood draw you can convert the agebins from units of lookback time to units of age 
@@ -501,15 +505,15 @@ class Output:
 
 # gather all the spectra (obs AND best-fit plus uncertainties)
 # spec_obs = np.stack((wspec, obs['spectrum'], obs['unc'])) # maggies
-# spec_fit = np.stack((wspec, spec16, spec50, spec84)) # maggies
-phot_obs = np.stack((wphot, obs['maggies']))
+spec_fit = np.stack((wspec, spec16, spec50, spec84)) # maggies
 phot_fit = np.stack((wphot, phot16, phot50, phot84))
 
 # make an instance of the output structure for this dict
-out = Output(phot_obs=phot_obs, phot_fit=phot_fit, output_sfh=sfrPercent, cmf=massPercent, 
+out = Output(phot_fit=phot_fit, output_sfh=sfrPercent, cmf=massPercent, 
     objname=str(obs['objid']), massfrac=massFrac, percentiles=percentiles, massTot=totmassPercent, 
     input_lbt=(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value), output_lbt=lbt_interp, input_sfh=um_sfh,
-    input_t50=x_in_t50, input_t95=x_in_t95, output_t50=x_rec_t50, output_t95=x_rec_t95, obs=obs, gal=gal, spsdict=spsdict)
+    input_t50=x_in_t50, input_t95=x_in_t95, output_t50=x_rec_t50, output_t95=x_rec_t95, obs=obs, gal=gal, spsdict=spsdict, 
+    zred_weighted=zred_weighted, spec_fit=spec_fit)
 
 # and save it
 if not os.path.exists('dicts/z3mb/'):

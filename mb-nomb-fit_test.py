@@ -13,31 +13,6 @@ import os
 import pandas as pd
 import glob
 
-def stepInterp(ab, val, ts):
-    '''ab: agebins vector
-    val: the original value (sfr, etc) that we want to interpolate
-    ts: new values we want to interpolate to '''
-    newval = np.zeros_like(ts) + np.nan
-    for i in range(0,len(ab)):
-        newval[(ts >= ab[i,0]) & (ts < ab[i,1])] = val[i]  
-    return newval 
-
-def quantile(data, percents, weights=None):
-    ''' percents in units of 1%
-    weights specifies the frequency (count) of data.
-    '''
-    if weights is None:
-        return np.percentile(data, percents)
-    ind = np.argsort(data)
-    d = data[ind]
-    w = weights[ind]
-    p = 1.*w.cumsum()/w.sum()*100
-    y = np.interp(percents, p, d)
-    return y
-
-def trap(x, y):
-        return np.sum((x[1:] - x[:-1]) * (y[1:] + y[:-1]))/2. 
-
 # set some params
 tflex=2
 nflex=5
