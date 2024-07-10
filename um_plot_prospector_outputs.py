@@ -28,6 +28,7 @@ from prospect.io.read_results import traceplot, subcorner
 from wren_functions import modified_logsfr_ratios_to_agebins, modified_logsfr_ratios_to_masses_flex
 import fsps
 import math
+from dynesty import utils
 
 # set up cosmology
 cosmo = FlatLambdaCDM(H0=70, Om0=.3)
@@ -318,6 +319,7 @@ nfixed = mod.params['nfixed']
 tflex_frac = mod.params['tflex_frac']
 
 # actual sfh percentiles
+zred_thisdraw = np.array([])
 allsfrs = np.zeros((flatchain.shape[0], len(mod.params['agebins'])))
 allagebins = np.zeros((flatchain.shape[0], len(mod.params['agebins']), 2))
 for iteration in range(flatchain.shape[0]):
