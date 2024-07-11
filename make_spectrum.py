@@ -393,10 +393,12 @@ if __name__ == "__main__":
         w, spec = sps.get_spectrum(tage=cosmo.age(z).value, peraa = True) # Lsun/AA
         spec = spec * lsun / (4 * np.pi * (cosmo.luminosity_distance(z=z).value*1e6*pc)**2 * (1+z)) # erg/s/cm^2/AA (f_lamda))
 
+        
+        ####### Plots in Flambda Units ########
+        '''
         sfig, saxes = plt.subplots(2,1, figsize=(8, 6))
         saxes[0].plot(cosmo.age(gal['sfh'][:,0]).value, gal['sfh'][:,1], lw=1.2, alpha=.6)
         
-        ####### Plots in Flambda Units ########
         # Created new convertMaggiesToFlam function that will do a conversion to flambda given maggies (ALR inputs wave_eff)
         saxes[1].plot(w*(1+obs['zred']), spec, label='Galaxy spectrum',lw=1.5, color='grey', alpha=0.7, zorder=10)    
         saxes[1].errorbar(obs['wave_effective'][obs['phot_mask']], convertMaggiesToFlam(obs['maggies_orig'][obs['phot_mask']]), label='Intrinsic photometry', marker='s', markersize=10, 
@@ -422,28 +424,40 @@ if __name__ == "__main__":
         sfig.tight_layout()
         
         plt.show()
-        
         '''
+        
         ##### TEMPORARY - plot filters
+        # being a control freak
+        plt.rc('font', size=11)          # controls default text sizes
+        plt.rc('axes', titlesize=14)     # fontsize of the axes title
+        plt.rc('axes', labelsize=11)    # fontsize of the x and y labels
+        plt.rc('xtick', labelsize=10)    # fontsize of the tick labels
+        plt.rc('ytick', labelsize=10)    # fontsize of the tick labels
+        plt.rc('legend', fontsize=12)    # legend fontsize
+        plt.rc('figure', titlesize=12)  # fontsize of the figure title
+        
         # establish bounds
         fig = plt.figure(figsize=(8,4))
+        mask = [True, True, True, True, True, True, True, False, False, False, 
+            False, False, False, False, False, False, False, False, False, False, False]
         counter = 0
         for f in obs['filters']:
-            w, t = f.wavelength.copy(), f.transmission.copy()
-            w_index = int(len(w)/2)
-            t_index = int(len(t)/2)
+            #w, t = f.wavelength.copy(), f.transmission.copy()
+
+            w = obs['wave_effective']
+            t_nomb = np.ma.masked_array(obs['maggies'], mask)
+            t_mb = np.ma.masked_array(obs['maggies'], np.logical_not(mask))
             if counter < 7:
-                plt.plot(w[w_index], t[t_index], lw=2, marker='o', color="navy")
-                print(counter)
+                plt.plot(np.ma.masked_array(w, mask), t_nomb, lw=0, marker='o', markersize=10, markerfacecolor='navy', markeredgecolor='navy', markeredgewidth=3)
             else:
-                plt.plot(w[w_index], t[t_index], lw=2, marker='o', color="maroon")
+                plt.plot(np.ma.masked_array(w, np.logical_not(mask)), t_mb, lw=0, markersize=10, markerfacecolor='maroon', markeredgecolor='maroon', markeredgewidth=3)
             counter+=1
 
         #Legend labels
-        plt.plot(w*(1+obs['zred']), spec, lw=1, color="black",label="Galaxy spectrum")
+        plt.plot(w*(1+obs['zred']), spec, lw=1, color="gray",label="Galaxy spectrum")
         plt.scatter([], [], label="UNCOVER")
         plt.scatter([], [], label="Medium bands (MB)")
-
+        
         # prettify
         plt.xlabel('Wavelength [' + r'$\AA$' + ']')
         plt.xlabel(r"F$_\lambda$ [ergs/s/cm$^2$/\AA]")
@@ -454,8 +468,8 @@ if __name__ == "__main__":
         plt.yscale("log")
         plt.yticks([])
         plt.tight_layout()
-        plt.savefig("filters.png", dpi=400)
-        '''
+        plt.show()
+        #plt.savefig("filters.png", dpi=400)
     
     
     #sps.set_tabular_sfh(time_beginning, sfr) #set metallicity? Z=logZ[0].item()

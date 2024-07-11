@@ -29,8 +29,18 @@ plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/scatterplots-mb-nomb/'
 class Output:
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
-        
+ 
+ # being a control freak
+plt.rc('font', size=11)          # controls default text sizes
+plt.rc('axes', titlesize=14)     # fontsize of the axes title
+plt.rc('axes', labelsize=11)    # fontsize of the x and y labels
+plt.rc('xtick', labelsize=10)    # fontsize of the tick labels
+plt.rc('ytick', labelsize=10)    # fontsize of the tick labels
+plt.rc('legend', fontsize=12)    # legend fontsize
+plt.rc('figure', titlesize=12)  # fontsize of the figure title
+      
 fig, ax = plt.subplots(4,3,figsize=(12,15))
+
 #directory_array = [mb_directory, nomb_directory]
 
 zcounter_array = [0,1,2]
@@ -42,6 +52,11 @@ for zcounter in zcounter_array:
         #clearing variables
         dust2_array = []
         zred_array = []
+        input_mass_array = []
+        output_mass_array = np.array([], dtype=np.int64).reshape(0,3)
+        input_SFR = []
+        output_SFR = np.array([], dtype=np.int64).reshape(0,3)
+        
         x_i = []
         x_o = []
     
@@ -95,63 +110,110 @@ for zcounter in zcounter_array:
                 outputAverageSFR_LE = averageSFR(res.output_lbt, res.output_sfh[:,1], timescale=0.1)
                 outputAverageSFR = averageSFR(res.output_lbt, res.output_sfh[:,2], timescale=0.1)
                 outputAverageSFR_UE = averageSFR(res.output_lbt, res.output_sfh[:,3], timescale=0.1)
-            
-                if(directory_index == 0): # MB
-                    #LOGMASS
-                    ax[1,zcounter].errorbar(res.obs['logM'],res.percentiles['logmass'][1],yerr=np.vstack((res.percentiles['logmass'][1]-res.percentiles['logmass'][0],res.percentiles['logmass'][2]-res.percentiles['logmass'][1])),marker='.', markersize=10, ls='', lw=2, 
-                        markerfacecolor='maroon',markeredgecolor='maroon',ecolor='maroon',elinewidth=1.4, alpha=0.7,label="Broad+MB" if first_iteration else "")
-        
-                    #SFR over last 100 Myr
-                    ax[2,zcounter].errorbar(inputAverageSFR,outputAverageSFR, yerr=np.vstack((outputAverageSFR-outputAverageSFR_LE, outputAverageSFR_UE-outputAverageSFR)), marker='.', markersize=10, ls='', lw=2, markerfacecolor='maroon', markeredgecolor='maroon', ecolor='maroon',elinewidth=1.4, alpha=0.7)
-                
-                if(directory_index == 1): # No MB
-                    #LOGMASS 
-                    ax[1, zcounter].errorbar(res.obs['logM'],res.percentiles['logmass'][1],yerr=np.vstack((res.percentiles['logmass'][1]-res.percentiles['logmass'][0],res.percentiles['logmass'][2]-res.percentiles['logmass'][1])), marker='.', markersize=10, ls='', lw=2, 
-                        c='navy',markeredgecolor='navy',ecolor='navy',elinewidth=1.4, alpha=0.7,label="Broad only" if first_iteration else "")
-                
-                    #SFR over last 100 Myr
-                    ax[2, zcounter].errorbar(inputAverageSFR,outputAverageSFR, yerr=np.vstack((outputAverageSFR-outputAverageSFR_LE, outputAverageSFR_UE-outputAverageSFR)), marker='.', markersize=10, ls='', lw=2, markerfacecolor='navy', markeredgecolor='navy', ecolor='navy',elinewidth=1.4, alpha=0.7)
-                
-            
+
                 dust2_array.append(res.percentiles['dust2'][1])
                 zred_array.append(res.percentiles['zred'][1]) 
+                
+                input_mass_array = np.append(input_mass_array, res.obs['logM'])
+                output_mass_array = np.vstack((output_mass_array, res.percentiles['logmass']))
+                
+                input_SFR = np.append(input_SFR, inputAverageSFR)
+                output_SFR = np.vstack((output_SFR, [outputAverageSFR_LE, outputAverageSFR, outputAverageSFR]))
             
                 first_iteration = False
          
         # PLOT THE VIOLIN PLOTS (zred, dust2, dust_index - INPUT is same!!!)
+        # FIND BIAS + SCATTER
+        mass_bias = np.median(output_mass_array[:,1] - input_mass_array)
+        mass_scatter = np.std(np.abs(output_mass_array[:,1] - input_mass_array))
+        SFR_bias = np.median(output_SFR[:,1] - input_SFR)
+        SFR_scatter = np.std(np.abs(output_SFR[:,1] - input_SFR))
+        dust2_bias = np.median(dust2_array - np.full(len(dust2_array), res.spsdict['dust2']))
+        dust2_scatter = np.std(np.abs(dust2_array - np.full(len(dust2_array), res.spsdict['dust2'])))
+        zred_bias = np.median(zred_array - np.full(len(zred_array), res.spsdict['zred']))
+        zred_scatter = np.std(np.abs(zred_array - np.full(len(zred_array), res.spsdict['zred'])))
+        
+        zred_lim = [0.1, 0.6, 0.6] # describes the max scatter for binning
+        
         if(directory_index == 0): # medium bands
-            _, bins_zred, _ = ax[0,zcounter].hist(zred_array, bins=np.linspace(res.spsdict['zred']-0.35, res.spsdict['zred']+0.35, 30), range=[res.spsdict['zred']-0.35,res.spsdict['zred']+0.35], color='maroon', alpha=0.5)
-            _, bins_dust2, _ = ax[3,zcounter].hist(dust2_array, bins=np.linspace(0.0, 1.0, 25), range=[0.0,1.0], color='maroon', alpha=0.5)
+            # plot results
+            zred_bins = (res.spsdict['zred']-zred_lim[zcounter], res.spsdict['zred']+zred_lim[zcounter])
+            _, bins_zred, _ = ax[0,zcounter].hist(zred_array, bins=np.linspace(zred_bins[0], zred_bins[1], 10), color='maroon', alpha=0.5)
+            _, bins_dust2, _ = ax[3,zcounter].hist(dust2_array, bins=np.linspace(0.0, 1.0, 10), range=[0,1], color='maroon', alpha=0.5)
+        
+            ax[1,zcounter].errorbar(input_mass_array,output_mass_array[:,1],yerr=np.vstack((output_mass_array[:,1]-output_mass_array[:,0],output_mass_array[:,2]-output_mass_array[:,1])),marker='.', markersize=10, ls='', lw=2, 
+                markerfacecolor='maroon',markeredgecolor='maroon',ecolor='maroon',elinewidth=1.4, alpha=0.7,label="Broad+MB" if first_iteration else "")
+            ax[2,zcounter].errorbar(input_SFR,output_SFR[:,1], yerr=np.vstack((output_SFR[:,1]-output_SFR[:,0], output_SFR[:,2]-output_SFR[:,1])), marker='.', markersize=10, ls='', lw=2, markerfacecolor='maroon', markeredgecolor='maroon', ecolor='maroon',elinewidth=1.4, alpha=0.7)
+            
+            # add bias + scatter
+            ax[0,zcounter].text(x=0.07, y=0.9, s=r'$\mu$ = {:.3f}'.format(zred_bias), transform=ax[0,zcounter].transAxes, color='maroon')
+            ax[0,zcounter].text(x=0.07, y=0.83, s=r'$\sigma$ = {:.3f}'.format(zred_scatter), transform=ax[0,zcounter].transAxes, color='maroon')
+            ax[3,zcounter].text(x=0.7, y=0.9, s=r'$\mu$ = {:.3f}'.format(dust2_bias), transform=ax[3,zcounter].transAxes, color='maroon')
+            ax[3,zcounter].text(x=0.7, y=0.83, s=r'$\sigma$ = {:.3f}'.format(dust2_scatter), transform=ax[3,zcounter].transAxes, color='maroon')
+            
+            ax[1,zcounter].text(x=0.7, y=0.3, s=r'$\mu$ = {:.3f}'.format(mass_bias), transform=ax[1,zcounter].transAxes, color='maroon')
+            ax[1,zcounter].text(x=0.7, y=0.23, s=r'$\sigma$ = {:.3f}'.format(mass_scatter), transform=ax[1,zcounter].transAxes, color='maroon')
+            ax[2,zcounter].text(x=0.7, y=0.3, s=r'$\mu$ = {:.3f}'.format(SFR_bias), transform=ax[2,zcounter].transAxes, color='maroon')
+            ax[2,zcounter].text(x=0.7, y=0.23, s=r'$\sigma$ = {:.3f}'.format(SFR_scatter), transform=ax[2,zcounter].transAxes, color='maroon')
+            
         if(directory_index == 1): # no medium bands
-            ax[0,zcounter].hist(zred_array, bins=bins_zred, range=[res.spsdict['zred']-0.35,res.spsdict['zred']+0.35], color='navy', alpha=0.5)
-            ax[3,zcounter].hist(dust2_array, bins=bins_dust2, range=[0.0,1.0], color='navy', alpha=0.5)
+            # plot results
+            ax[0,zcounter].hist(zred_array, bins=bins_zred, color='navy', alpha=0.5)
+            ax[3,zcounter].hist(dust2_array, bins=bins_dust2, color='navy', alpha=0.5)
+            ax[1,zcounter].errorbar(input_mass_array,output_mass_array[:,1],yerr=np.vstack((output_mass_array[:,1]-output_mass_array[:,0],output_mass_array[:,2]-output_mass_array[:,1])),marker='.', markersize=10, ls='', lw=2, 
+                            markerfacecolor='navy',markeredgecolor='navy',ecolor='navy',elinewidth=1.4, alpha=0.7,label="Broad+MB" if first_iteration else "")
+            ax[2,zcounter].errorbar(input_SFR,output_SFR[:,1], yerr=np.vstack((output_SFR[:,1]-output_SFR[:,0], output_SFR[:,2]-output_SFR[:,1])), marker='.', markersize=10, ls='', lw=2, markerfacecolor='navy', markeredgecolor='navy', ecolor='navy',elinewidth=1.4, alpha=0.7)
+            
+            # add bias + scatter
+            ax[0,zcounter].text(x=0.07, y=0.74, s=r'$\mu$ = {:.3f}'.format(zred_bias), transform=ax[0,zcounter].transAxes, color='navy')
+            ax[0,zcounter].text(x=0.07, y=0.67, s=r'$\sigma$ = {:.3f}'.format(zred_scatter), transform=ax[0,zcounter].transAxes, color='navy')
+            ax[3,zcounter].text(x=0.7, y=0.74, s=r'$\mu$ = {:.3f}'.format(dust2_bias), transform=ax[3,zcounter].transAxes, color='navy')
+            ax[3,zcounter].text(x=0.7, y=0.67, s=r'$\sigma$ = {:.3f}'.format(dust2_scatter), transform=ax[3,zcounter].transAxes, color='navy')
+            
+            ax[1,zcounter].text(x=0.7, y=0.14, s=r'$\mu$ = {:.3f}'.format(mass_bias), transform=ax[1,zcounter].transAxes, color='navy')
+            ax[1,zcounter].text(x=0.7, y=0.07, s=r'$\sigma$ = {:.3f}'.format(mass_scatter), transform=ax[1,zcounter].transAxes, color='navy')
+            ax[2,zcounter].text(x=0.7, y=0.14, s=r'$\mu$ = {:.3f}'.format(SFR_bias), transform=ax[2,zcounter].transAxes, color='navy')
+            ax[2,zcounter].text(x=0.7, y=0.07, s=r'$\sigma$ = {:.3f}'.format(SFR_scatter), transform=ax[2,zcounter].transAxes, color='navy')
+        
+            print(str(zcounter) + " " + str(zred_array))
+            ax[0,zcounter].set_xlim(zred_bins[0]-0.05, zred_bins[1]+0.05)
+            
+                
+        ax[0,zcounter].yaxis.set_major_formatter('{x:.0f}') # frequency with no decimals
+        ax[0,zcounter].xaxis.set_major_formatter('{x:.1f}') # 1 decimal after for zred
+        ax[0,0].set_xticks(np.arange(0.8, 1.2, 0.1)) # special for scaling
+        
+        ax[1,zcounter].yaxis.set_major_formatter('{x:.1f}') # 1 decimal after for mass
+        ax[1,zcounter].xaxis.set_major_formatter('{x:.1f}') # 1 decimal after for mass
+        
+        ax[3,zcounter].yaxis.set_major_formatter('{x:.0f}') # frequency with no decimals
+        ax[3,zcounter].xaxis.set_major_formatter('{x:.1f}')
         
     # Below this point is just scaling
     #ZRED - hist
-    ax[0,zcounter].set_ylabel("Recovered redshift")
-    ax[0,zcounter].set_xlabel("Input redshift")
-    ax[0,zcounter].axvline(res.spsdict['zred'], ls='--',color='black', lw=2, label='Input redshift: {0:.3f}'.format(res.spsdict['zred']))
-    ax[0,zcounter].set_xlim(res.spsdict['zred']-0.35,res.spsdict['zred']+0.35)
+    ax[0,zcounter].set_xlabel("Recovered redshift")
+    ax[0,zcounter].axvline(res.spsdict['zred'], ls='--',color='black', lw=2, label='Input')
 
     # DUST2 - violin
-    ax[3,zcounter].set_xlabel("Input dust2")
-    ax[3, zcounter].set_ylabel("Recovered dust2")
-    ax[3, zcounter].axvline(0.2, ls='--',color='black', lw=2, label='Input dust2: 0.2')
-    ax[3, zcounter].set_xlim(0,1.0)
+    ax[3, zcounter].set_xlabel("Recovered dust2")
+    ax[3, zcounter].axvline(res.spsdict['dust2'], ls='--',color='black', lw=2)
+    ax[3, zcounter].set_xlim(-0.1,1.1)
 
     # LOGMASS - scatter
     ax[1, zcounter].axline((10.5, 10.5), slope=1, ls='--', color='black', lw=2)
-    ax[1, zcounter].set_xlabel(r'Input $log M_{stellar}$ (log $M_{sun}$)')
-    ax[1, zcounter].set_ylabel(r'Recovered $log M_{stellar}$ (log $M_{sun}$)')
-    ax[1, zcounter].legend(fontsize=10) # the one legend
+    ax[1, zcounter].set_xlabel(r'Input $\log{\rm{M}_* / \rm{M}_\odot}$')
+    ax[1, zcounter].set_ylabel(r'Recovered $\log{\rm{M}_* / \rm{M}_\odot}$')
 
     # SFR - over meaningful timescale (100 Myr)
     ax[2, zcounter].axline((0, 0), slope=1., ls='--', color='black', lw=2)
-    ax[2, zcounter].set_ylabel(r'Recovered $log SFR_{ave, 100 Myr}$ (log $M_{sun}$ / yr)')
-    ax[2, zcounter].set_xlabel(r'Input $log SFR_{ave, 100 Myr}$ (log $M_{sun}$ / yr)')
+    ax[2, zcounter].set_ylabel(r'Recovered $\log{\rm{SFR}} [\rm{M}_\odot yr^{-1}]$')
+    ax[2, zcounter].set_xlabel(r'Input $\log{\rm{SFR}} [\rm{M}_\odot yr^{-1}]$')
     ax[2, zcounter].set_xscale('log')
     ax[2, zcounter].set_yscale('log')
 
+for zvalue in zcounter_array:
+    ax[0, zvalue].set_title("z = " + str(zvalue+1))
+    #ax[0, zvalue].legend()
 plt.tight_layout()
 plt.show()
 
@@ -165,7 +227,7 @@ while os.path.isfile(plotdir+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made
 #fig.savefig(plotdir+filename, bbox_inches='tight')
-fig.savefig("/Users/michpark/Sync/Documents/JWST RESEARCH/Interesting Plots/PAPER PLOTS/allzscatter.pdf", bbox_inches='tight')
+#fig.savefig("/Users/michpark/Sync/Documents/JWST RESEARCH/Interesting Plots/PAPER PLOTS/allzscatter.pdf", bbox_inches='tight')
 print('saved mb vs. nomb scatterplot to '+plotdir+filename) 
 
 #plt.close(fig)
