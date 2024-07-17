@@ -117,10 +117,10 @@ spsdict -- contains truth logzsol, dust2, dust index
 res, obs, mod = results_from("{}".format(outroot), dangerous=True) 
 print("{}".format(outroot))
 sps = get_sps(res)
-gal = (np.load('/oak/stanford/orgs/kipac/users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-spsdict = (np.load('/oak/stanford/orgs/kipac/users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
-#gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
-#spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+#gal = (np.load('/oak/stanford/orgs/kipac/users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+#spsdict = (np.load('/oak/stanford/orgs/kipac/users/michpark/JWST_Programs/mockgalaxies/obs-z3/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
+gal = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['gal']
+spsdict = (np.load('/Users/michpark/JWST_Programs/mockgalaxies/obs-z1/umobs_'+str(obs['objid'])+'.npz', allow_pickle=True))['params'][()]
 
 print('Object ID: ' + str(obs['objid']))
 
@@ -246,7 +246,7 @@ print('Done calculating spectra')
 c = 2.99792458e18
 
 # NORMAL PLOTTING
-#fig, ax = plt.subplots(3,1,figsize=(8,14))
+fig, ax = plt.subplots(3,1,figsize=(8,14))
 
 ################ PLOT SPECTRA IN FLAM ################
 def convertMaggiesToFlam(w, maggies):
@@ -266,7 +266,6 @@ def convertMaggiesToFlam(w, maggies):
 norm_wl = ((wspec>6300) & (wspec<6500))
 norm = np.nanmax(convertMaggiesToFlam(wphot, obs['maggies'])[obs['phot_mask']])
 
-'''
 ax[0].plot(wspec, convertMaggiesToFlam(wspec, spec50), label='Median spectrum',
                    lw=1.5, color='grey', alpha=0.7, zorder=10) 
 ax[0].errorbar(wphot[obs['phot_mask']], convertMaggiesToFlam(wphot, phot50)[obs['phot_mask']], label='Model photometry',
@@ -288,7 +287,6 @@ ax[0].legend(loc='best', fontsize=9)
 ax[0].set_title(str(int(obs['objid'])))
 ax[0].tick_params(axis='both', which='major', labelsize=10)
 print('Made spectrum plot')
-'''
 
 ######################## SFH for FLEXIBLE continuity model ########################
 from um_prospector_param_file import updated_logsfr_ratios_to_masses_psb, updated_psb_logsfr_ratios_to_agebins
@@ -415,7 +413,6 @@ plt.legend()
 '''
 
 ################ SFH PLOTTING in LBT ################
-'''
 # OUTPUT SFH
 ax[1].fill_between(lbt_interp, sfrPercent[:,1], sfrPercent[:,3], color='grey', alpha=.5)
 ax[1].plot(lbt_interp, sfrPercent[:,2], color='black', lw=1.5, label='Output SFH (z = {0:.3f})'.format(mod.params['zred'][0])) 
@@ -431,7 +428,6 @@ ax[1].tick_params(axis='both', which='major', labelsize=10)
 ax[1].set_ylabel('SFR [' + r'$M_{\odot} /yr$' + ']', fontsize = 10)
 ax[1].set_xlabel('Lookback Time [Gyr]', fontsize = 10)
 print('Finished SFH')
-'''
  
 ################ CUMULATIVE MASS FRACTION ################
 # Square interpolation - SFR(t1) and SFR(t2) are two snapshots, then for t<(t1+t2)/2 you assume SFR=SFR(t1) and t>(t1+t2)/2 you assume SFR=SFR(t2)
@@ -451,24 +447,40 @@ for n in range(len(trapsfh)-1):
 inputmassPercent = input_massFracSFR/input_massFracSFR[len(input_massFracSFR)-1]
 inputmassLBT = (cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)[1:len(cosmo.age(obs['zred']).value - cosmo.age(gal['sfh'][:,0]).value)]
 
-'''
 # PlOT + display input/output mass
 ax[2].fill_between(lbt_interp, massPercent[:,1], massPercent[:,3], color='grey', alpha=.5)
 ax[2].plot(lbt_interp,massPercent[:,2],color='black',lw=1.5,label='Output SFH')
 ax[2].plot(inputmassLBT, inputmassPercent, color='blue',lw=1.5,label='Input SFH')
-'''
 
 ################ t50/t95 calculations ################
 # t50, t95 INPUT SFH
-x_in_t50 = inputmassLBT[np.argmin(np.abs(0.50 - inputmassPercent))]
-x_in_t95 = inputmassLBT[np.argmin(np.abs(0.95 - inputmassPercent))]
+x_in_t50 = inputmassLBT[np.nanargmin(np.abs(0.50 - inputmassPercent))]
+x_in_t95 = inputmassLBT[np.nanargmin(np.abs(0.95 - inputmassPercent))]
 
 # t50, t95 OUTPUT SFH
-x_rec_t50 = lbt_interp[np.argmin(np.abs(0.50 - massPercent[:,2]))]
-x_rec_t95 = lbt_interp[np.argmin(np.abs(0.50 - massPercent[:,2]))]
+x_rec_t50 = lbt_interp[np.nanargmin(np.abs(0.50 - massPercent[:,2]))]
+x_rec_t95 = lbt_interp[np.nanargmin(np.abs(0.95 - massPercent[:,2]))]
 
-'''
+x_rec_t50_notnan = lbt_interp[np.argmin(np.abs(0.50 - massPercent[:,2]))]
+x_rec_t95_notnan = lbt_interp[np.argmin(np.abs(0.95 - massPercent[:,2]))]
+
+# debug the t50/t95 nanargmin situation
+print("INPUT -- t50: {:.3f}, t95: {:.3f}".format(x_in_t50, x_in_t95))
+print("OUTPUT (argmin) -- t50: {:.3f}, t95: {:.3f}".format(x_rec_t50_notnan, x_rec_t95_notnan))
+print("OUTPUT (nanargmin) -- t50: {:.3f}, t95: {:.3f}".format(x_rec_t50, x_rec_t95))
+
+ax[2].axvline(x_rec_t50_notnan, linestyle='dashed', lw=1, color='red')
+ax[2].axvline(x_rec_t95_notnan, linestyle='dashed', lw=1, color='red')
+ax[2].axvline(x_rec_t50, linestyle='dotted', lw=1, color='black')
+ax[2].axvline(x_rec_t95, linestyle='dotted', lw=1, color='black')
+
+ax[1].axvline(x_rec_t50_notnan, linestyle='dashed', lw=1, color='red', label='Incorrect t50/t95')
+ax[1].axvline(x_rec_t95_notnan, linestyle='dashed', lw=1, color='red')
+ax[1].axvline(x_rec_t50, linestyle='dotted', lw=1, color='black', label='Correct t50/t95')
+ax[1].axvline(x_rec_t95, linestyle='dotted', lw=1, color='black')
+
 # plot t50, t95 on SFH + mass frac plots
+'''
 ax[2].axvline(x_in_t50, linestyle='dotted', lw=1, color='blue')
 ax[2].axvline(x_in_t95, linestyle='dotted', lw=1, color='blue')
 ax[2].axvline(x_rec_t50, linestyle='dotted', lw=1, color='black')
@@ -478,29 +490,29 @@ ax[1].axvline(x_in_t50, linestyle='dotted', lw=1, color='blue')
 ax[1].axvline(x_in_t95, linestyle='dotted', lw=1, color='blue')
 ax[1].axvline(x_rec_t50, linestyle='dotted', lw=1, color='black')
 ax[1].axvline(x_rec_t95, linestyle='dotted', lw=1, color='black')
+'''
 
 ax[2].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
 ax[2].set_ylabel('Cumulative Mass Fraction')
+ax[1].legend()
 ax[2].legend()
 ax[2].set_xlabel('Lookback Time [Gyr]')
 ax[2].set_ylim(0,1)
-'''
 
-'''
 plt.show()
 # save plot
 fig.tight_layout()
 if not os.path.exists(plotdir+'sfh'):
     os.mkdir(plotdir+'sfh')    
-fig.savefig(plotdir+'sfh/' + filename, bbox_inches='tight')
+#fig.savefig(plotdir+'sfh/' + filename, bbox_inches='tight')
   
 print('saved sfh to '+plotdir+'sfh/'+filename) 
 #plt.close(fig)
 print('Made SFH plot')
-'''
 
 # and now we want to write out all of these outputs so we can have them for later!
 # make a lil class that will just save all of the outputs we give it, so that it's easy to pack all these together later
+'''
 class Output:
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
@@ -521,4 +533,4 @@ out = Output(phot_fit=phot_fit, output_sfh=sfrPercent, cmf=massPercent,
 if not os.path.exists('dicts/z3mb/'):
     os.mkdir('dicts/z3mb/')
 np.savez('dicts/z3mb/'+str(obs['objid'])+'.npz', res=out)
-
+'''
