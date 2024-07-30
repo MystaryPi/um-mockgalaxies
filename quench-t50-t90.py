@@ -8,6 +8,7 @@ t95, t50, t95-t50 scatterplots
 python quench-t50-t90.py -- automatically detects z1, z2, z3 dictionary
 '''
 import numpy as np
+import matplotlib as mpl
 from matplotlib import pyplot as plt, ticker as ticker; plt.interactive(True)
 from matplotlib.ticker import FormatStrFormatter
 import sys
@@ -22,7 +23,7 @@ class Output:
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
         
-fig, ax = plt.subplots(3,1,figsize=(6, 8))
+fig, ax = plt.subplots(3,2,figsize=(10, 11))
 
 # assign directory #DONT DO IN SHERLOCK - NO SEABORN
 '''
@@ -33,12 +34,13 @@ if len(sys.argv) > 1:
 
 plotdir = '/Users/michpark/JWST_Programs/mockgalaxies/scatterplots-mb-nomb/'
 
-zcounter_array = [0,1,2]
-colors = ['#7FCDBB', '#1D91C0','#0C2C84']
+z_array = [1, 2, 3, 4.5, 5]
+cmap = mpl.colormaps['viridis']
+colors = [cmap(0), cmap(0.25), cmap(0.5), cmap(0.875), cmap(0.99)]
 
-for zcounter in zcounter_array:
-    #directory_array = ['/Users/michpark/JWST_Programs/mockgalaxies/final-dicts/z'+str(zcounter+1)+'mb', '/Users/michpark/JWST_Programs/mockgalaxies/final-dicts/z'+str(zcounter+1)+'nomb/']
-    directory_array = ['/Users/michpark/JWST_Programs/mockgalaxies/final-dicts/z'+str(zcounter+1)+'mb']
+for zcounter, z in enumerate(z_array):
+    zstring = str(z).replace('.', 'p') 
+    directory_array = ['/Users/michpark/JWST_Programs/mockgalaxies/final-dicts/z'+zstring+'mb', '/Users/michpark/JWST_Programs/mockgalaxies/final-dicts/z'+zstring+'nomb']
 
     for directory_index, directory in enumerate(directory_array):
         print("Current directory: " + str(directory)) # prints out directory we're currently iterating over
@@ -59,19 +61,20 @@ for zcounter in zcounter_array:
             print('----- Object ID: ' + str(res.objname) + ' -----')
             
             # oops i accidentally calculated t95 wrong (for output b/c nan values present)
-            res.output_t50 = res.output_lbt[np.argmin(np.abs(0.5 - res.cmf[:,2]))]
-            res.output_t95 = res.output_lbt[np.argmin(np.abs(0.95 - res.cmf[:,2]))]
+            res.output_t50 = res.output_lbt[np.nanargmin(np.abs(0.5 - res.cmf[:,2]))]
+            res.output_t95 = res.output_lbt[np.nanargmin(np.abs(0.95 - res.cmf[:,2]))]
+            
+            if(res.output_t95 > 2.5):
+                print(res.obs['objid'])
             
             # append to arrays
             t50_array = np.vstack((t50_array, [res.input_t50, res.output_t50]))
             t95_array = np.vstack((t95_array, [res.input_t95, res.output_t95]))
             tdif_array = np.vstack((tdif_array, [np.abs(res.input_t95 - res.input_t50), np.abs(res.output_t95 - res.output_t50)]))
 
-        ax[0].scatter(t95_array[:,0], t95_array[:,1], color=colors[zcounter], label=zcounter+1 if first_iteration else "")
-        ax[1].scatter(t50_array[:,0], t50_array[:,1], color=colors[zcounter])
-        ax[2].scatter(tdif_array[:,0], tdif_array[:,1], color=colors[zcounter])
-        
-        first_iteration= False
+        ax[0,directory_index].scatter(t95_array[:,0], t95_array[:,1], c=colors[zcounter], zorder=zcounter)
+        ax[1,directory_index].scatter(t50_array[:,0], t50_array[:,1], c=colors[zcounter], zorder=zcounter)
+        ax[2,directory_index].scatter(tdif_array[:,0], tdif_array[:,1], c=colors[zcounter], zorder=zcounter)
 
 # being a control freak
 plt.rc('font', size=11)          # controls default text sizes
@@ -83,26 +86,28 @@ plt.rc('legend', fontsize=12)    # legend fontsize
 plt.rc('figure', titlesize=12)  # fontsize of the figure title
 
 # ideal recovery lines
-ax[0].axline((0, 0), slope=1., ls='--', color='black', lw=2)
-ax[1].axline((0, 0), slope=1., ls='--', color='black', lw=2)
-ax[2].axline((0, 0), slope=1., ls='--', color='black', lw=2)
+for axes in ax.reshape(-1):
+    axes.axline((0, 0), slope=1., ls='--', color='black', lw=2) 
+    axes.yaxis.set_major_formatter('{x:.1f}') #set major ticks
+    axes.xaxis.set_major_formatter('{x:.1f}') 
 
 # axes labels
-ax[0].set_ylabel(r'Recovered $t95$ [Gyr]')
-ax[0].set_xlabel(r'Input $t95$ [Gyr]')
-ax[1].set_ylabel(r'Recovered $t50$ [Gyr]')
-ax[1].set_xlabel(r'Input $t50$ [Gyr]')
-ax[2].set_ylabel(r'Recovered $| t95 - t50 |$ [Gyr]')
-ax[2].set_xlabel(r'Input $| t95 - t50 |$ [Gyr]')
+for directory_index, _ in enumerate(directory_array):
+    ax[0,directory_index].set_ylabel(r'Recovered $t95$ [Gyr]')
+    ax[0,directory_index].set_xlabel(r'Input $t95$ [Gyr]')
+    ax[1,directory_index].set_ylabel(r'Recovered $t50$ [Gyr]')
+    ax[1,directory_index].set_xlabel(r'Input $t50$ [Gyr]')
+    ax[2,directory_index].set_ylabel(r'Recovered $| t95 - t50 |$ [Gyr]')
+    ax[2,directory_index].set_xlabel(r'Input $| t95 - t50 |$ [Gyr]')
 
-# major ticks (all .1)
-for zcounter in zcounter_array:
-    ax[zcounter].yaxis.set_major_formatter('{x:.1f}') 
-    ax[zcounter].xaxis.set_major_formatter('{x:.1f}') 
+#plt.tight_layout()
+ax[0,0].set_title("UNCOVER+MB")
+ax[0,1].set_title("UNCOVER only")
+fig.subplots_adjust(right=0.8)
+cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+norm = mpl.colors.Normalize(vmin=1, vmax=5)
+fig.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), cax=cbar_ax, label='Redshift')
 
-ax[0].legend(title='Redshift')
-
-plt.tight_layout()
 plt.show()
 
 # make sure plot directory exists
@@ -110,7 +115,7 @@ if not os.path.exists(plotdir):
     os.mkdir(plotdir)
 
 counter=0
-filename = 'quench.pdf' #defines filename for all objects
+filename = 'quench_stretch.pdf' #defines filename for all objects
 while os.path.isfile(plotdir+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made

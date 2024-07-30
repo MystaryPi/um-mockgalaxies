@@ -239,6 +239,9 @@ phot84 = np.array([quantile(allphot[i,:], 84, weights = weights[idx]) for i in r
 spec16 = np.array([quantile(allspec[1,i,:], 16, weights = weights[idx]) for i in range(allspec.shape[1])])
 spec50 = np.array([quantile(allspec[1,i,:], 50, weights = weights[idx]) for i in range(allspec.shape[1])])
 spec84 = np.array([quantile(allspec[1,i,:], 84, weights = weights[idx]) for i in range(allspec.shape[1])])
+
+print(i)
+print(ii)
     
 print('Done calculating spectra')
 

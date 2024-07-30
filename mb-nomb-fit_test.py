@@ -118,7 +118,7 @@ for zcounter in zcounter_array:
                 output_mass_array = np.vstack((output_mass_array, res.percentiles['logmass']))
                 
                 input_SFR = np.append(input_SFR, inputAverageSFR)
-                output_SFR = np.vstack((output_SFR, [outputAverageSFR_LE, outputAverageSFR, outputAverageSFR]))
+                output_SFR = np.vstack((output_SFR, [outputAverageSFR_LE, outputAverageSFR, outputAverageSFR_UE]))
             
                 first_iteration = False
          
@@ -227,7 +227,7 @@ while os.path.isfile(plotdir+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made
 #fig.savefig(plotdir+filename, bbox_inches='tight')
-#fig.savefig("/Users/michpark/Sync/Documents/JWST RESEARCH/Interesting Plots/PAPER PLOTS/allzscatter.pdf", bbox_inches='tight')
+fig.savefig("/Users/michpark/Sync/Documents/JWST RESEARCH/Interesting Plots/PAPER PLOTS/allzscatter.pdf", bbox_inches='tight')
 print('saved mb vs. nomb scatterplot to '+plotdir+filename) 
 
 #plt.close(fig)
