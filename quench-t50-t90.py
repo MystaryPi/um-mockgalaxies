@@ -24,6 +24,14 @@ class Output:
         self.__dict__.update(kwds)
         
 fig, ax = plt.subplots(3,2,figsize=(10, 11))
+# being a control freak
+plt.rc('font', size=11)          # controls default text sizes
+plt.rc('axes', titlesize=14)     # fontsize of the axes title
+plt.rc('axes', labelsize=11)    # fontsize of the x and y labels
+plt.rc('xtick', labelsize=10)    # fontsize of the tick labels
+plt.rc('ytick', labelsize=10)    # fontsize of the tick labels
+plt.rc('legend', fontsize=12)    # legend fontsize
+plt.rc('figure', titlesize=12)  # fontsize of the figure title
 
 # assign directory #DONT DO IN SHERLOCK - NO SEABORN
 '''
@@ -38,12 +46,21 @@ z_array = [1, 2, 3, 4.5, 5]
 cmap = mpl.colormaps['viridis']
 colors = [cmap(0), cmap(0.25), cmap(0.5), cmap(0.875), cmap(0.99)]
 
+t95_all_mb = np.array([], dtype=np.int64).reshape(0,2)
+t50_all_mb = np.array([], dtype=np.int64).reshape(0,2)
+tdif_all_mb = np.array([], dtype=np.int64).reshape(0,2)
+t95_all_nomb = np.array([], dtype=np.int64).reshape(0,2)
+t50_all_nomb = np.array([], dtype=np.int64).reshape(0,2)
+tdif_all_nomb = np.array([], dtype=np.int64).reshape(0,2)
+
 for zcounter, z in enumerate(z_array):
     zstring = str(z).replace('.', 'p') 
     directory_array = ['/Users/michpark/JWST_Programs/mockgalaxies/final-dicts/z'+zstring+'mb', '/Users/michpark/JWST_Programs/mockgalaxies/final-dicts/z'+zstring+'nomb']
 
     for directory_index, directory in enumerate(directory_array):
         print("Current directory: " + str(directory)) # prints out directory we're currently iterating over
+        print(directory_index)
+
         #clearing variables
         t50_array = np.array([], dtype=np.int64).reshape(0,2)
         t95_array = np.array([], dtype=np.int64).reshape(0,2)
@@ -75,15 +92,46 @@ for zcounter, z in enumerate(z_array):
         ax[0,directory_index].scatter(t95_array[:,0], t95_array[:,1], c=colors[zcounter], zorder=zcounter)
         ax[1,directory_index].scatter(t50_array[:,0], t50_array[:,1], c=colors[zcounter], zorder=zcounter)
         ax[2,directory_index].scatter(tdif_array[:,0], tdif_array[:,1], c=colors[zcounter], zorder=zcounter)
+        
+        # add to a big array for bias/scatter
+        if directory_index == 0:
+            t95_all_mb = np.vstack((t95_all_mb, t95_array))
+            t50_all_mb = np.vstack((t50_all_mb, t50_array))
+            tdif_all_mb = np.vstack((tdif_all_mb, tdif_array))
+        else:
+            t95_all_nomb = np.vstack((t95_all_nomb, t95_array))
+            t50_all_nomb = np.vstack((t50_all_nomb, t50_array))
+            tdif_all_nomb = np.vstack((tdif_all_nomb, tdif_array)) 
+        
+## add the scatter + bias
+t95_bias_mb = np.median(t95_all_mb[:,1] - t95_all_mb[:,0])
+t95_scatter_mb = np.std(np.abs(t95_all_mb[:,1] - t95_all_mb[:,0]))
+t50_bias_mb = np.median(t50_all_mb[:,1] - t50_all_mb[:,0])
+t50_scatter_mb = np.std(np.abs(t50_all_mb[:,1] - t50_all_mb[:,0]))
+tdif_bias_mb = np.median(tdif_all_mb[:,1] - tdif_all_mb[:,0])
+tdif_scatter_mb = np.std(np.abs(tdif_all_mb[:,1] - tdif_all_mb[:,0]))
 
-# being a control freak
-plt.rc('font', size=11)          # controls default text sizes
-plt.rc('axes', titlesize=14)     # fontsize of the axes title
-plt.rc('axes', labelsize=11)    # fontsize of the x and y labels
-plt.rc('xtick', labelsize=10)    # fontsize of the tick labels
-plt.rc('ytick', labelsize=10)    # fontsize of the tick labels
-plt.rc('legend', fontsize=12)    # legend fontsize
-plt.rc('figure', titlesize=12)  # fontsize of the figure title
+t95_bias_nomb = np.median(t95_all_nomb[:,1] - t95_all_nomb[:,0])
+t95_scatter_nomb = np.std(np.abs(t95_all_nomb[:,1] - t95_all_nomb[:,0]))
+t50_bias_nomb = np.median(t50_all_nomb[:,1] - t50_all_nomb[:,0])
+t50_scatter_nomb = np.std(np.abs(t50_all_nomb[:,1] - t50_all_nomb[:,0]))
+tdif_bias_nomb = np.median(tdif_all_nomb[:,1] - tdif_all_nomb[:,0])
+tdif_scatter_nomb = np.std(np.abs(tdif_all_nomb[:,1] - tdif_all_nomb[:,0]))
+        
+# ADD TEXT
+ax[0,0].text(x=0.7, y=0.14, s=r'$\mu$ = {:.3f}'.format(t95_bias_mb), transform=ax[0,0].transAxes, color='maroon')
+ax[0,0].text(x=0.7, y=0.07, s=r'$\sigma$ = {:.3f}'.format(t95_scatter_mb), transform=ax[0,0].transAxes, color='maroon')
+ax[1,0].text(x=0.7, y=0.14, s=r'$\mu$ = {:.3f}'.format(t50_bias_mb), transform=ax[1,0].transAxes, color='maroon')
+ax[1,0].text(x=0.7, y=0.07, s=r'$\sigma$ = {:.3f}'.format(t50_scatter_mb), transform=ax[1,0].transAxes, color='maroon')
+ax[2,0].text(x=0.7, y=0.14, s=r'$\mu$ = {:.3f}'.format(tdif_bias_mb), transform=ax[2,0].transAxes, color='maroon')
+ax[2,0].text(x=0.7, y=0.07, s=r'$\sigma$ = {:.3f}'.format(tdif_scatter_mb), transform=ax[2,0].transAxes, color='maroon')
+
+ax[0,1].text(x=0.07, y=0.9, s=r'$\mu$ = {:.3f}'.format(t95_bias_nomb), transform=ax[0,1].transAxes, color='navy')
+ax[0,1].text(x=0.07, y=0.83, s=r'$\sigma$ = {:.3f}'.format(t95_scatter_nomb), transform=ax[0,1].transAxes, color='navy')
+ax[1,1].text(x=0.7, y=0.14, s=r'$\mu$ = {:.3f}'.format(t50_bias_nomb), transform=ax[1,1].transAxes, color='navy')
+ax[1,1].text(x=0.7, y=0.07, s=r'$\sigma$ = {:.3f}'.format(t50_scatter_nomb), transform=ax[1,1].transAxes, color='navy')
+ax[2,1].text(x=0.7, y=0.14, s=r'$\mu$ = {:.3f}'.format(tdif_bias_nomb), transform=ax[2,1].transAxes, color='navy')
+ax[2,1].text(x=0.7, y=0.07, s=r'$\sigma$ = {:.3f}'.format(tdif_scatter_nomb), transform=ax[2,1].transAxes, color='navy')
 
 # ideal recovery lines
 for axes in ax.reshape(-1):
