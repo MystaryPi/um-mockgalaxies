@@ -27,7 +27,6 @@ import h5py
 from matplotlib import pyplot as plt, ticker as ticker; plt.interactive(True)
 from astropy.cosmology import FlatLambdaCDM, z_at_value
 import astropy.units as u
-import um_cornerplot
 from prospect.models.transforms import logsfr_ratios_to_masses
 import sys
 from scipy.interpolate import interp1d
@@ -39,6 +38,7 @@ from prospect.io.read_results import traceplot, subcorner
 from wren_functions import modified_logsfr_ratios_to_agebins, modified_logsfr_ratios_to_masses_flex
 import fsps
 import math
+import scienceplots
 from um_prospector_param_file import updated_logsfr_ratios_to_masses_psb, updated_psb_logsfr_ratios_to_agebins
 
 
@@ -187,10 +187,10 @@ while os.path.isfile(plotdir+'sfh/'+filename.format(counter)):
     counter += 1
 filename = filename.format(counter) #iterate until a unique file is made
 
-fig, ax = plt.subplots(1,2,figsize=(12,5))
+fig, ax = plt.subplots(1,2,figsize=(8,4), width_ratios=[1, 3])
 #create the inset axes for the zred 
 #inset_ax = fig.add_axes([0.16, 0.75, 0.2, 0.12]) # without tightlayout
-inset_ax = fig.add_axes([0.09, 0.69, 0.13, 0.23]) # left of legend
+#inset_ax = fig.add_axes([0.09, 0.69, 0.13, 0.23]) # left of legend - last used
 
 for outroot_index, outroot in enumerate(outroot_array):
     # outroot_index = 0 is MB, outroot_index = 1 is no MB
@@ -280,7 +280,7 @@ for outroot_index, outroot in enumerate(outroot_array):
         return flux_flambda
 
     # wphot = wave_effective
-    
+    '''
     if(outroot_index == 0): # medium bands
         if(map_bool):
             # MAP SPECTRA
@@ -354,6 +354,7 @@ for outroot_index, outroot in enumerate(outroot_array):
     ax[0].tick_params(axis='both', which='major', labelsize=10)
     
     print('Made spectrum plot')
+    '''
 
     ######################## SFH for FLEXIBLE continuity model ########################
     # obtain sfh from universemachine
@@ -414,16 +415,20 @@ for outroot_index, outroot in enumerate(outroot_array):
     import seaborn as sns
     zred_weighted = utils.resample_equal(zred_thisdraw, res.get('weights', None))
     if(outroot_index == 0): #medium bands
-        inset_ax.axvline(x = obs['zred'], color='black', linestyle='--', label="$z_{spec}$")
-        sns.kdeplot(zred_weighted, color='maroon', label="$z_{phot}$", ax = inset_ax)
-    if(outroot_index == 1): #medium bands
-        sns.kdeplot(zred_weighted, color='navy', label="$z_{phot}$", ax = inset_ax)
+        #inset_ax.axvline(x = obs['zred'], color='black', linestyle='--', label="$z_{spec}$")
+        #sns.kdeplot(zred_weighted, color='maroon', label="$z_{phot}$", ax = inset_ax)
+        mb_zred_weighted = zred_weighted
+    if(outroot_index == 1): #no medium bands
+        #sns.kdeplot(zred_weighted, color='navy', label="$z_{phot}$", ax = inset_ax)
+        nomb_zred_weighted = zred_weighted
     
+    '''
     inset_ax.set_xlabel('Redshift', fontsize=10)
     inset_ax.set_ylabel('')
     inset_ax.set_yticks([])
     inset_ax.set_xlim((obs['zred'] - 2, obs['zred']+ 1.2))
     inset_ax.tick_params(labelsize=10)
+    '''
     
     # calculate interpolated SFR and cumulative mass  
     # with each likelihood draw you can convert the agebins from units of lookback time to units of age 
@@ -490,14 +495,30 @@ for outroot_index, outroot in enumerate(outroot_array):
  
     print("For loop completed")
 
+# GOLDWATER PLOTTING
+ax[0].axvline(x = obs['zred'], color='black', linestyle='--', label="True redshift")
+sns.kdeplot(mb_zred_weighted, color='maroon', label="UNCOVER+MB", ax = ax[0])
+sns.kdeplot(nomb_zred_weighted, color='navy', label="UNCOVER only", ax = ax[0])
+ax[0].set_ylabel("Posterior probability", fontsize=13)
+ax[0].set_xlabel("Recovered redshift", fontsize=13)
+ax[0].set_aspect(1 / ax[0].get_data_ratio())
+ax[0].set_xlim((obs['zred'] - 2, obs['zred']+ 1.2))
+#ax[0].legend(loc='best')
+ax[0].set_yticks([])
+
+
 ax[1].set_xlim(cosmo.age(gal['sfh'][:,0]).value[-1], 0)
 ax[1].set_yscale('log')
-ax[1].legend(loc='best', fontsize=11)
-ax[1].tick_params(axis='both', which='major', labelsize=11)
-ax[1].set_ylabel('Star Formation Rate [' + r'$M_{\odot} /yr$' + ']', fontsize = 11)
+ax[1].legend(loc='best', fontsize=14)
+ax[1].tick_params(axis='both', which='major')
+ax[1].locator_params(axis='x', nbins=5)
+#ax[1].locator_params(axis='y', nbins=5)
+ax[1].set_ylabel('Star Formation Rate [' + r'$M_{\odot} /yr$' + ']', fontsize=14)
 #ax[1].set_xlabel('years before observation [Gyr]')
-ax[1].set_xlabel('Lookback Time [Gyr]', fontsize = 11)
+ax[1].set_xlabel('Lookback Time [Gyr]', fontsize=14)
 
+### PREVIOUS PLOTTING
+'''
 # building the legend for the spectrum plot
 #ax[0].scatter([], [], color='black', marker='o', s=10, label=r'$Observed (\textcolor{maroon}{Broad+MB,} \color{navy}{Broad only})$') # adds a black dot onto the legend, representing observed
 ax[0].scatter([], [], color='black', marker='o', s=10, label=r'Observed photometry') # adds a black dot onto the legend, representing observed
@@ -509,6 +530,8 @@ leg = inset_ax.legend(handlelength=0, frameon=False, fontsize=11)
 for line,text in zip(leg.get_lines(),leg.get_texts()):
     text.set_color(line.get_color())
 
+'''
+
 plt.show()
 # save plot
 fig.tight_layout() 
@@ -516,6 +539,7 @@ fig.savefig(plotdir+'sfh/' + filename, bbox_inches='tight')
 
 print('saved sfh to '+plotdir+'sfh/'+filename) 
 print('Made SFH plot')
+
 '''
 # and now we want to write out all of these outputs so we can have them for later!
 # make a lil class that will just save all of the outputs we give it, so that it's easy to pack all these together later
